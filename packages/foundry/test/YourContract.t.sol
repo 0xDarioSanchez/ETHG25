@@ -2,16 +2,16 @@
 pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
-import "../contracts/YourContract.sol";
+import "../contracts/ProtocolContract.sol";
 
-contract YourContractTest is Test {
-    YourContract public yourContract;
+contract ProtocolContractTest is Test {
+    ProtocolContract public ProtocolContract;
 
     function setUp() public {
-        yourContract = new YourContract(vm.addr(1));
+        ProtocolContract = new ProtocolContract(vm.addr(1));
     }
 
     function testMessageOnDeployment() public view {
-        require(keccak256(bytes(yourContract.greeting())) == keccak256("Building Unstoppable Apps!!!"));
+        require(keccak256(bytes(ProtocolContract.greeting())) == keccak256("Building Unstoppable Apps!!!"));
     }
 }

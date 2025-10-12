@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity >=0.8.0 <0.9.0;
+pragma solidity 0.8.30;
 
 // Useful for debugging. Remove when deploying to a live network.
 import "forge-std/console.sol";
@@ -12,7 +12,7 @@ import "forge-std/console.sol";
  * It also allows the owner to withdraw the Ether in the contract
  * @author BuidlGuidl
  */
-contract YourContract {
+contract ProtocolContract {
     // State Variables
     address public immutable owner;
     string public greeting = "Building Unstoppable Apps!!!";
