@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: MIT
+//SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 import "forge-std/console.sol";
@@ -20,7 +20,6 @@ contract ProtocolContract {
     }
 
     // Modifier: used to define a set of rules that must be met before or after a function is executed
-    // Check the withdraw() function
     modifier isOwner() {
         require(msg.sender == owner, "Not the Owner");
         _;

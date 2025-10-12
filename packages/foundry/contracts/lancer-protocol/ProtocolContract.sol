@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: MIT
+//SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // Useful for debugging. Remove when deploying to a live network.
@@ -8,9 +8,9 @@ import "forge-std/console.sol";
 // import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
- * A smart contract that allows changing a state variable of the contract and tracking the changes
+ * Smart contract with the main logic of Lancer Protocol
  * It also allows the owner to withdraw the Ether in the contract
- * @author BuidlGuidl
+ * @author 0xDarioSanchez
  */
 contract ProtocolContract {
     // State Variables
