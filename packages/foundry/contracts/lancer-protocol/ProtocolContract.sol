@@ -1,11 +1,27 @@
 //SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
-// Useful for debugging. Remove when deploying to a live network.
+// ====================================
+//              IMPORTS          
+// ====================================
+
 import "forge-std/console.sol";
 
-// Use openzeppelin to inherit battle-tested implementations (ERC20, ERC721, etc)
-// import "@openzeppelin/contracts/access/Ownable.sol";
+//import "@openzeppelin/contracts/access/Ownable.sol";
+
+
+// ====================================
+//             INTERFACE          
+// ====================================
+
+interface IPYUSD {
+    function transfer(address to, uint256 amount) external returns(bool);
+}
+
+
+// ====================================
+//              CONTRACT          
+// ====================================
 
 /**
  * Smart contract with the main logic of Lancer Protocol
@@ -13,67 +29,148 @@ import "forge-std/console.sol";
  * @author 0xDarioSanchez
  */
 contract ProtocolContract {
-    // State Variables
-    address public immutable owner;
-    string public greeting = "Building Unstoppable Apps!!!";
-    bool public premium = false;
-    uint256 public totalCounter = 0;
-    mapping(address => uint256) public userGreetingCounter;
 
-    // Events: a way to emit log statements from smart contract that can be listened to by external parties
-    event GreetingChange(address indexed greetingSetter, string newGreeting, bool premium, uint256 value);
+    // ====================================
+    //          STATE VARIABLES          
+    // ====================================
 
-    // Constructor: Called once on contract deployment
-    // Check packages/foundry/deploy/Deploy.s.sol
-    constructor(address _owner) {
-        owner = _owner;
+    address public owner;
+    IPYUSD public pyusd;
+
+    uint256 public keepAmount = 2 * 10**18; // 2 PYUSD kept in contract
+
+    struct Judge {
+        bool isRegistered;
+        uint256 reputation;
     }
 
-    // Modifier: used to define a set of rules that must be met before or after a function is executed
-    // Check the withdraw() function
-    modifier isOwner() {
-        // msg.sender: predefined variable that represents address of the account that called the current function
+    struct Dispute {
+        address requester;
+        uint256 amount; // dispute fee paid
+        string reason;
+        uint256 votesFor;
+        uint256 votesAgainst;
+        bool resolved;
+        mapping(address => bool) voted;
+        address[] votedForWinner; // judges that voted for winning side
+    }
+
+    mapping(address => Judge) public judges;
+    Dispute[] public disputes;
+
+
+    // ====================================
+    //             MODIFIERS          
+    // ====================================
+
+    modifier onlyOwner() {
         require(msg.sender == owner, "Not the Owner");
         _;
     }
 
-    /**
-     * Function that allows anyone to change the state variable "greeting" of the contract and increase the counters
-     *
-     * @param _newGreeting (string memory) - new greeting to save on the contract
-     */
-    function setGreeting(string memory _newGreeting) public payable {
-        // Print data to the anvil chain console. Remove when deploying to a live network.
+    // ====================================
+    //              EVENTS          
+    // ====================================
 
-        console.logString("Setting new greeting");
-        console.logString(_newGreeting);
+    event JudgeRegistered(address indexed judge);
+    event DisputeCreated(uint256 indexed disputeId, address indexed requester);
+    event DisputeResolved(uint256 indexed disputeId, address winner);
 
-        greeting = _newGreeting;
-        totalCounter += 1;
-        userGreetingCounter[msg.sender] += 1;
+    // ====================================
+    //           CUSTOM ERRORs          
+    // ====================================
 
-        // msg.value: built-in global variable that represents the amount of ether sent with the transaction
-        if (msg.value > 0) {
-            premium = true;
+    // ====================================
+    //           CONSTRUCTOR          
+    // ====================================
+
+    constructor(address _owner, address _pyusd) {
+        owner = _owner;
+        pyusd = IPYUSD(_pyusd);
+    }
+
+    // ====================================
+    //         EXTERNAL FUNCTIONS          
+    // ====================================
+
+    function registerJudge() external {
+        require(!judges[msg.sender].isRegistered, "Already registered");
+        judges[msg.sender] = Judge(true, 1);
+        emit JudgeRegistered(msg.sender);
+    }
+
+    function createDispute(address requester, uint256 amount, string calldata reason) external {
+        uint256 disputeId = disputes.length;
+        disputes.push();
+        Dispute storage d = disputes[disputeId];
+        d.requester = requester;
+        d.amount = amount;
+        d.reason = reason;
+        emit DisputeCreated(disputeId, requester);
+    }
+
+    function vote(uint256 disputeId, bool support) external {
+        Dispute storage d = disputes[disputeId];
+        Judge storage j = judges[msg.sender];
+        require(j.isRegistered, "Not a judge");
+        require(!d.voted[msg.sender], "Already voted");
+
+        if(support){
+            d.votesFor += j.reputation;
         } else {
-            premium = false;
+            d.votesAgainst += j.reputation;
+        }
+        d.voted[msg.sender] = true;
+    }
+
+    function resolveDispute(uint256 disputeId) external {
+        Dispute storage d = disputes[disputeId];
+        require(!d.resolved, "Already resolved");
+
+        bool outcomeForRequester = d.votesFor > d.votesAgainst;
+        d.resolved = true;
+
+        // distribute remaining PYUSD (after keeping 2) to judges that voted for winner
+        uint256 rewardPool = d.amount - keepAmount;
+        address[] memory winners;
+
+        // determine winners
+        for(uint i=0; i<disputes[disputeId].votedForWinner.length; i++){
+            winners[i] = disputes[disputeId].votedForWinner[i];
         }
 
-        // emit: keyword used to trigger an event
-        emit GreetingChange(msg.sender, _newGreeting, msg.value > 0, msg.value);
+        if(winners.length > 0){
+            uint256 rewardPerJudge = rewardPool / winners.length;
+            for(uint i=0; i<winners.length; i++){
+                pyusd.transfer(winners[i], rewardPerJudge);
+            }
+        }
+
+        emit DisputeResolved(disputeId, outcomeForRequester ? d.requester : address(0));
     }
+
+    // ====================================
+    //          PUBLIC FUNCTIONS          
+    // ====================================
 
     /**
      * Function that allows the owner to withdraw all the Ether in the contract
      * The function can only be called by the owner of the contract as defined by the isOwner modifier
      */
-    function withdraw() public isOwner {
+    function withdraw() public onlyOwner {
         (bool success,) = owner.call{ value: address(this).balance }("");
         require(success, "Failed to send Ether");
     }
 
-    /**
-     * Function that allows the contract to receive ETH
-     */
+    // ====================================
+    //        PURE & VIEW FUNCTIONS          
+    // ====================================
+
+    // ====================================
+    //              OTHERS          
+    // ====================================
+
+    //Function that allows the contract to receive ETH
     receive() external payable { }
+
 }
