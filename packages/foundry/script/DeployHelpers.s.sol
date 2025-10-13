@@ -25,8 +25,11 @@ contract ScaffoldETHDeploy is Script {
     /// @notice The deployer address for every run
     address deployer;
 
+    address public token;
+
     /// @notice Use this modifier on your run() function on your deploy scripts
     modifier ScaffoldEthDeployerRunner() {
+        token = vm.envAddress("TOKEN_ADDRESS");
         deployer = _startBroadcast();
         if (deployer == address(0)) {
             revert InvalidPrivateKey("Invalid private key");

@@ -3,7 +3,7 @@ pragma solidity 0.8.30;
 
 library LancerTypes {
     
-    struct Escrow {
+    struct Deal {
         address payer;
         address receiver;
         uint256 amount;

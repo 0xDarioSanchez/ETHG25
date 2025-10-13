@@ -63,11 +63,10 @@ contract FactoryContract {
     // ====================================
 
     function createMarketplace(
-        string memory _name,
         uint256 _feePercent,
         address _token
     ) external {
-        Marketplace newMarketplace = new Marketplace(msg.sender, _name, _feePercent, _token);
+        Marketplace newMarketplace = new Marketplace(msg.sender, _feePercent, _token);
         marketplaces.push(address(newMarketplace));
         emit MarketplaceCreated(address(newMarketplace), msg.sender);
     }

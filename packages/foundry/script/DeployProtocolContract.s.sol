@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "./DeployHelpers.s.sol";
-import "../contracts/ProtocolContract.sol";
+import "../contracts/lancer-protocol/ProtocolContract.sol";
 
 /**
  * @notice Deploy script for ProtocolContract contract
@@ -25,6 +25,6 @@ contract DeployProtocolContract is ScaffoldETHDeploy {
      *      - Export contract addresses & ABIs to `nextjs` packages
      */
     function run() external ScaffoldEthDeployerRunner {
-        new ProtocolContract(deployer);
+        new ProtocolContract(deployer, token);
     }
 }

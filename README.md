@@ -7,6 +7,7 @@ TODO
 
 - [ ] Set up project structure
 - [ ] Develop Lancer Protocol's smart contracts 
+- [ ] Implement milestones system for `deals`
 - [ ] Define standard interfaces for third-party integrations  
 - [ ] Build reusable libraries (`LancerTypes`, `LancerErrors`, `SafeTransferLib`) for shared logic 
 - [ ] Develop Lancer Protocol's SDK 
