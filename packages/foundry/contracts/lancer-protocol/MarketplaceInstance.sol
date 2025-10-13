@@ -30,8 +30,10 @@ contract MarketplaceInstance {
     address public immutable owner;             //Owner of the contract, the one who deployed it
     address public immutable token;             //PYUSD token address
     uint256 public feePercent;                  //Fee percentage charged on each deal, in PYUSD
+    address public immutable protocolAddress;   //Address of the Protocol contract
     IERC20 public pyusd;                        //Interface for PYUSD token
     IProtocolContract public protocolContract;  //Interface for Protocol contract
+    uint64 public dealIdCounter;                //Incremental ID for deals
 
     //Struct for storing user information
     //The reason to have 3 booleans is to allow users to be in different roles while using the same address
@@ -55,7 +57,8 @@ contract MarketplaceInstance {
         address beneficiary;    //The one who receives the payment, it can be a freelancer or a seller
         uint256 amount;         //Amount in PYUSD
         uint256 startedAt;      //Timestamp when the deal was accepted
-        bool accepted;            //True if the deal is open, false if it is closed
+        uint16 duration;        //Duration in days for the deal
+        bool accepted;          //True if the deal is open, false if it is closed
         bool disputed;          //True if there is an open dispute for this deal
     }
 
@@ -115,12 +118,13 @@ contract MarketplaceInstance {
     event DealCreated(uint64 indexed dealId, address indexed payer, address indexed beneficiary, uint256 amount);
     event DealAccepted(uint64 indexed dealId);
     event DealRejected(uint64 indexed dealId);
-    event DealDisputed(uint64 indexed dealId, address indexed requester);
     event DisputeRequested(uint256 indexed disputeId, address indexed requester);
     event UserWithdrew(address indexed user, uint256 amount);
     event PaymentDeposited(address indexed user, uint256 amount);
     event DealAmountUpdated(uint64 indexed dealId, uint256 newAmount);
-    
+    event DealFinalized(uint64 indexed dealId);
+    event DealDurationUpdated(uint64 indexed dealId, uint16 newDuration);
+    event DisputeCreated(uint64 indexed dealId, address indexed requester);
 
     // ====================================
     //           CUSTOM ERRORs          
@@ -133,11 +137,13 @@ contract MarketplaceInstance {
     constructor(
         address _owner, 
         uint256 _feePercent, 
-        address _token
+        address _token,
+        address _protocolAddress
     ) {
         owner = _owner;
         feePercent = _feePercent;
         pyusd = IERC20(_token);
+        protocolAddress = _protocolAddress;
     }
 
     // ====================================
@@ -184,28 +190,30 @@ contract MarketplaceInstance {
     //Allow users registered as beneficiaries to create deals
     //It must be accepted by the payer to be effective
     //Only `amount` can be updated after creation, but not if already accepted
-    function createDeal(address receiver, uint256 amount, uint32 dealId) external {
-        require(deals[dealId].amount == 0, "Deal already exists");
-        require(amount > 0, "Amount must be greater than zero");
-        require(receiver != address(0), "Invalid receiver address");
+    function createDeal(address _receiver, uint256 _amount, uint16 _duration) external {
+        require(_amount > 0, "Amount must be greater than zero");
+        require(_receiver != address(0), "Invalid receiver address");
         require(users[msg.sender].isBeneficiary, "User not registered as beneficiary");
 
-        deals[dealId] = Deal({
-            dealId: dealId,
+        deals[dealIdCounter] = Deal({
+            dealId: dealIdCounter,
             beneficiary: msg.sender,
-            payer: receiver,
-            amount: amount,
+            payer: _receiver,
+            amount: _amount,
+            duration: _duration,
             startedAt: 0,
             accepted: false,
             disputed: false
         });
 
-        emit DealCreated(dealId, msg.sender, receiver, amount);
+        emit DealCreated(dealIdCounter, msg.sender, _receiver, _amount);
+
+        dealIdCounter += 1;
     }
 
 
-    function updateDealAmount(uint64 dealId, uint256 newAmount) external dealExists(dealId) {
-        Deal storage deal = deals[dealId];
+    function updateDealAmount(uint64 _dealId, uint256 newAmount) external dealExists(_dealId) {
+        Deal storage deal = deals[_dealId];
 
         require(msg.sender == deal.payer, "Only payer can update the deal");
         require(!deal.accepted, "Deal already accepted");
@@ -213,39 +221,114 @@ contract MarketplaceInstance {
 
         deal.amount = newAmount;
 
-        emit DealAmountUpdated(dealId, newAmount);
+        emit DealAmountUpdated(_dealId, newAmount);
+    }
+
+    //Function to update the duration of a deal, only if not accepted yet
+    //Duration is in days
+    function updateDealDuration(uint64 _dealId, uint16 newDuration) external dealExists(_dealId) {
+        Deal storage deal = deals[_dealId];
+
+        require(msg.sender == deal.payer, "Only payer can update the deal");
+        require(!deal.accepted, "Deal already accepted");
+        require(newDuration > 0, "Duration must be greater than zero");
+
+        deal.amount = newDuration;
+
+        emit DealDurationUpdated(_dealId, newDuration);
     }
 
 
     //Function to accept a deal, transferring the funds to the contract
     //`Payer` transfer tokens to the contract but its balance is not updated until, that only happens if `Payer` request for a dispute and win it
-    function acceptDeal(uint32 dealId) external dealExists(dealId) {
-        Deal storage deal = deals[dealId];
-        require(msg.sender == deals[dealId].payer, "Only payer can perform this action");
+    function acceptDeal(uint32 _dealId) external dealExists(_dealId) {
+        Deal storage deal = deals[_dealId];
+        require(msg.sender == deals[_dealId].payer, "Only payer can perform this action");
 
         deal.accepted = true;
         deal.startedAt = block.timestamp;
 
         IERC20(token).safeTransfer(address(this), deal.amount);
 
-        emit DealAccepted(dealId);
+        emit DealAccepted(_dealId);
     }
 
-
-    function rejectDeal(uint64 dealId) external dealExists(dealId) {
-        Deal storage deal = deals[dealId];
+    //If `Payer` does not agree with the deal, it can reject it
+    //The deal is deleted
+    function rejectDeal(uint64 _dealId) external dealExists(_dealId) {
+        Deal storage deal = deals[_dealId];
 
         require(msg.sender == deal.payer, "Only payer can reject the deal");
         require(!deal.accepted, "Deal already accepted");
 
-        delete deals[dealId];
+        delete deals[_dealId];
 
-        emit DealRejected(dealId);
+        emit DealRejected(_dealId);
     } 
 
 
-    // // Request a dispute, transfer dispute fee to Voting contract
-    // function requestDispute(string calldata reason) external {
+    //Function to finalize a deal once `Payer` is satisfied with the conditions
+    //`Beneficiary` balance is updated to allow its withdrawal
+    //The corresponding fee is kept in the contract to be withdrawn by the owner
+    //The deal is deleted
+    function finishDeal(uint64 _dealId) external onlyPayer(_dealId) dealExists(_dealId) {
+        Deal memory deal = deals[_dealId];
+
+        require(deal.accepted, "Deal not accepted");
+        require(!deal.disputed, "Deal is disputed");
+
+        //Calculate fee
+        uint256 fee = (deal.amount * feePercent) / 100;
+
+        //Update beneficiary balance
+        users[deal.beneficiary].balance += (deal.amount - fee);
+
+        delete deals[_dealId];
+
+        emit DealFinalized(_dealId);
+    }
+
+
+    //Function to request the payment of a deal after its duration has passed
+    //Only can be executed by the `Beneficiary` if 1 week have passed since the deal duration ended
+    //`Beneficiary` balance is updated to allow its withdrawal
+    //The corresponding fee is kept in the contract to be withdrawn by the owner
+    //The deal is deleted
+    function requestDealPayment(uint64 _dealId) external onlyBeneficiary(_dealId) dealExists(_dealId) {
+        Deal memory deal = deals[_dealId];
+
+        require(deal.accepted, "Deal not accepted");
+        require(!deal.disputed, "Deal is disputed");
+        require(block.timestamp >= deal.startedAt + (deal.duration * 1 days) + 1 weeks, "Deal duration not sufficient");
+
+        //Calculate fee
+        uint256 fee = (deal.amount * feePercent) / 100;
+
+        //Update beneficiary balance
+        users[deal.beneficiary].balance += (deal.amount - fee);
+
+        delete deals[_dealId];
+
+        emit DealFinalized(_dealId);
+    }
+
+
+    // Request a dispute, transfer dispute fee to Voting contract
+    function requestDispute(uint64 _dealId, string calldata _proof) external dealExists(_dealId) onlyPayer(_dealId) {
+        pyusd.safeTransferFrom(msg.sender, protocolAddress, 20 * 10**18); // 20 PYUSD, assuming 18 decimals
+        //TODO check amount of decimals for PYUSD
+        Deal storage deal = deals[_dealId];
+        require(deal.accepted, "Deal not accepted");
+        require(!deal.disputed, "Deal already disputed");
+
+        deal.disputed = true;
+
+        // Notify Protocol contract
+        protocolContract.createDispute(msg.sender, _dealId, _proof);
+
+        emit DisputeCreated(_dealId, msg.sender);
+
+    }    
     //     uint256 disputeFee = 20 * 10**18; // 20 PYUSD, assuming 18 decimals
     //     require(balances[msg.sender] >= disputeFee, "Insufficient balance for dispute");
 
