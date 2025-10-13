@@ -6,7 +6,8 @@ pragma solidity 0.8.30;
 // ====================================
 
 import "forge-std/console.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "./interfaces/IPYUSD.sol";
 import "./interfaces/IProtocolContract.sol";
@@ -21,20 +22,16 @@ import "./interfaces/IProtocolContract.sol";
  * @author 0xDarioSanchez
  */
 contract MarketplaceInstance {
-
+    using SafeERC20 for IERC20;
     // ====================================
     //          STATE VARIABLES          
     // ====================================
 
     address public immutable owner;             //Owner of the contract, the one who deployed it
     address public immutable token;             //PYUSD token address
-    //address public immutable token;             //PYUSD token address
     uint256 public feePercent;                  //Fee percentage charged on each deal, in PYUSD
-    IPYUSD public pyusd;                        //Interface for PYUSD token
+    IERC20 public pyusd;                        //Interface for PYUSD token
     IProtocolContract public protocolContract;  //Interface for Protocol contract
-
-    mapping(address => uint256) public balances;    // User's balances
-    mapping(uint256 => bool) public disputeResults; //TODO is necessary?
 
     //Struct for storing user information
     //The reason to have 3 booleans is to allow users to be in different roles while using the same address
@@ -43,33 +40,38 @@ contract MarketplaceInstance {
         uint256 balance;        //Balance in PYUSD disponible to withdraw
         int8 reputationAsUser;  //Reputation calculated from deals as payer or beneficiary
         int8 reputationAsJudge; //Reputation calculated from voting process as judge
-        bool isPayer;           //Determines if the user can act as a payer
-        bool isBeneficiary;     //Determines if the user can act as a beneficiary
+        bool isPayer;           //Determines if the user can act as a payer (e.g. freelancer or seller)
+        bool isBeneficiary;     //Determines if the user can act as a beneficiary (e.g. company or buyer)
         bool isJudge;           //Determines if the user can act as a judge
-        uint32[] deals;         // deals where the user is involved
+        uint64[] deals;         // deals where the user is involved
     }
 
+    //Struct to store deal information
+    //`amount` indicates the total
+    //TODO add milestones system
     struct Deal {
-        uint32 dealId;          //ID to identify the deal
+        uint64 dealId;          //ID to identify the deal
         address payer;          //The one who pays, it can be a company or a buyer
         address beneficiary;    //The one who receives the payment, it can be a freelancer or a seller
         uint256 amount;         //Amount in PYUSD
-        uint256 fee;            //Fee in PYUSD
         uint256 startedAt;      //Timestamp when the deal was accepted
         bool accepted;            //True if the deal is open, false if it is closed
         bool disputed;          //True if there is an open dispute for this deal
     }
 
     struct Dispute {
-        uint32 dealId;          //ID to connect the dispute with the corresponding deal
-        address requester;      //The one who opens the dispute
-        string reason;          //Reason for opening the dispute
-        bool isOpen;            //True if the dispute is open, false if it is closed
+        uint32 dealId;              //ID to connect the dispute with the corresponding deal
+        address requester;          //The one who opens the dispute. It will always be the payer
+        string requesterProofs;     //Proofs provided by the requester
+        string beneficiaryProofs;   //Proofs provided by the beneficiary
+        bool[] votes;               //Array of votes, true for requester, false for beneficiary
+        bool waitingForJudges;      //True if waiting for the judges to be assigned
+        bool isOpen;                //True if the dispute is open to vote, False if it is closed
     }   
 
-    User[] public users;        //Array of all users
-    Deal[] public deals;        //Array of all deals
-    Dispute[] public disputes;  //Array of all disputes
+    mapping(address => User) public users;      //Mapping to store users information
+    mapping(uint256 => Deal) public deals;      //Mapping to store deals information
+    mapping(uint64 => Dispute) public disputes; //Mapping to store disputes information
 
     // ====================================
     //             MODIFIERS          
@@ -80,27 +82,45 @@ contract MarketplaceInstance {
         _;
     }
 
-    modifier onlyReceiver(uint256 dealId) {
+    modifier onlyUser() {
+        require(users[msg.sender].userAddress == msg.sender, "Not the user");
+        _;
+    }
+
+    modifier onlyBeneficiary(uint64 dealId) {
         require(msg.sender == deals[dealId].beneficiary, "Only receiver can perform this action");
         _;
     }
 
-    modifier escrowExists(uint256 dealId) {
+    modifier onlyPayer(uint64 dealId) {
+        require(msg.sender == deals[dealId].payer, "Only payer can perform this action");
+        _;
+    }
+
+    modifier dealExists(uint64 dealId) {
         require(deals[dealId].amount > 0, "Deal does not exist");
         _;
     }
 
-    modifier notReleased(uint256 dealId) {
-        require(!deals[dealId].accepted, "Deal already released");
-        _;
-    }
+    // modifier notAccepted(uint64 dealId) {
+    //     require(!deals[dealId].accepted, "Deal not accepted");
+    //     _;
+    // }
 
     // ====================================
     //              EVENTS          
     // ====================================
 
-    event PaymentDeposited(address indexed user, uint256 amount);
+    event UserRegistered(address indexed user, bool isPayer, bool isBeneficiary, bool isJudge);
+    event DealCreated(uint64 indexed dealId, address indexed payer, address indexed beneficiary, uint256 amount);
+    event DealAccepted(uint64 indexed dealId);
+    event DealRejected(uint64 indexed dealId);
+    event DealDisputed(uint64 indexed dealId, address indexed requester);
     event DisputeRequested(uint256 indexed disputeId, address indexed requester);
+    event UserWithdrew(address indexed user, uint256 amount);
+    event PaymentDeposited(address indexed user, uint256 amount);
+    event DealAmountUpdated(uint64 indexed dealId, uint256 newAmount);
+    
 
     // ====================================
     //           CUSTOM ERRORs          
@@ -117,96 +137,175 @@ contract MarketplaceInstance {
     ) {
         owner = _owner;
         feePercent = _feePercent;
-        pyusd = IPYUSD(_token);
+        pyusd = IERC20(_token);
     }
 
     // ====================================
     //         EXTERNAL FUNCTIONS          
     // ====================================
 
-    function setDisputeContract(address _dispute) external {
-        require(address(protocolContract) == address(0), "Already set");
-        protocolContract = IProtocolContract(_dispute);
+    function registerUser(bool _isPayer, bool _isBeneficiary, bool _isJudge) external {
+        //Check if the user is already registered
+        require(users[msg.sender].userAddress == address(0), "User already registered");
+        require(_isPayer || _isBeneficiary || _isJudge, "At least one role must be true");
+
+        //Register the user
+        users[msg.sender] = User({
+            userAddress: msg.sender,
+            balance: 0,
+            reputationAsUser: 0,
+            reputationAsJudge: 0,
+            isPayer: _isPayer,
+            isBeneficiary: _isBeneficiary,
+            isJudge: _isJudge,
+            deals: new uint64[](0)
+        });
+
+        emit UserRegistered(msg.sender, _isPayer, _isBeneficiary, _isJudge);
     }
 
-    // Deposit funds to deal
-    function deposit(uint256 amount) external {
-        require(pyusd.transferFrom(msg.sender, address(this), amount), "Transfer failed");
-        balances[msg.sender] += amount;
-        emit PaymentDeposited(msg.sender, amount);
-    }
+    function addRole(bool _isPayer, bool _isBeneficiary, bool _isJudge) external onlyUser {
+        require(_isPayer || _isBeneficiary || _isJudge, "At least one role must be true");
 
-    // Request a dispute, transfer dispute fee to Voting contract
-    function requestDispute(string calldata reason) external {
-        uint256 disputeFee = 20 * 10**18; // 20 PYUSD, assuming 18 decimals
-        require(balances[msg.sender] >= disputeFee, "Insufficient balance for dispute");
-
-        // Deduct dispute fee from user deal
-        balances[msg.sender] -= disputeFee;
-        require(pyusd.transfer(address(protocolContract), disputeFee), "Dispute transfer failed");
-
-        // Notify Voting contract
-        protocolContract.createDispute(msg.sender, disputeFee, reason);
-        emit DisputeRequested(0, msg.sender); // disputeId will be generated in Voting contract
-    }
-
-    // Apply dispute result: adjust balances based on outcome (optional)
-    function applyDisputeResult(uint256 disputeId, address[] calldata judges, uint256 totalReward) external {
-        require(msg.sender == address(protocolContract), "Unauthorized");
-        // Distribute rewards if needed, example:
-        for(uint i=0; i<judges.length; i++){
-            pyusd.transfer(judges[i], totalReward / judges.length);
+        if(_isPayer){
+            users[msg.sender].isPayer = true;
         }
-        // 2 PYUSD stays in Voting contract, handled internally there
-        disputeResults[disputeId] = true;
+        if(_isBeneficiary){
+            users[msg.sender].isBeneficiary = true;
+        }
+        if(_isJudge){
+            users[msg.sender].isJudge = true;
+        }
+
+        emit UserRegistered(msg.sender, _isPayer, _isBeneficiary, _isJudge);
     }
 
 
-    function createDeal(address receiver, uint256 amount, uint32 dealId) external payable {
+    //Allow users registered as beneficiaries to create deals
+    //It must be accepted by the payer to be effective
+    //Only `amount` can be updated after creation, but not if already accepted
+    function createDeal(address receiver, uint256 amount, uint32 dealId) external {
         require(deals[dealId].amount == 0, "Deal already exists");
         require(amount > 0, "Amount must be greater than zero");
         require(receiver != address(0), "Invalid receiver address");
+        require(users[msg.sender].isBeneficiary, "User not registered as beneficiary");
 
         deals[dealId] = Deal({
             dealId: dealId,
-            payer: msg.sender,
-            beneficiary: receiver,
+            beneficiary: msg.sender,
+            payer: receiver,
             amount: amount,
-            fee: (amount * feePercent) / 100,
             startedAt: 0,
             accepted: false,
             disputed: false
         });
 
-        //emit EscrowCreated(escrowId, msg.sender, receiver, amount);
+        emit DealCreated(dealId, msg.sender, receiver, amount);
     }
 
-    function acceptDeal(uint32 dealId) external escrowExists(dealId) notReleased(dealId) {
+
+    function updateDealAmount(uint64 dealId, uint256 newAmount) external dealExists(dealId) {
+        Deal storage deal = deals[dealId];
+
+        require(msg.sender == deal.payer, "Only payer can update the deal");
+        require(!deal.accepted, "Deal already accepted");
+        require(newAmount > 0, "Amount must be greater than zero");
+
+        deal.amount = newAmount;
+
+        emit DealAmountUpdated(dealId, newAmount);
+    }
+
+
+    //Function to accept a deal, transferring the funds to the contract
+    //`Payer` transfer tokens to the contract but its balance is not updated until, that only happens if `Payer` request for a dispute and win it
+    function acceptDeal(uint32 dealId) external dealExists(dealId) {
         Deal storage deal = deals[dealId];
         require(msg.sender == deals[dealId].payer, "Only payer can perform this action");
 
         deal.accepted = true;
         deal.startedAt = block.timestamp;
 
-        IERC20(token).transfer(deal.beneficiary, deal.amount); 
+        IERC20(token).safeTransfer(address(this), deal.amount);
 
-        //emit EscrowReleased(escrowId);
+        emit DealAccepted(dealId);
     }
 
-    function cancelDeal(uint32 dealId) external escrowExists(dealId) notReleased(dealId) {
-        Deal storage deal = deals[dealId];
-        require(msg.sender == deals[dealId].payer, "Only payer can perform this action");
 
-        deal.accepted = false;
+    function rejectDeal(uint64 dealId) external dealExists(dealId) {
+        Deal storage deal = deals[dealId];
+
+        require(msg.sender == deal.payer, "Only payer can reject the deal");
+        require(!deal.accepted, "Deal already accepted");
+
         delete deals[dealId];
 
-        //emit EscrowCancelled(escrowId);
-    }  
+        emit DealRejected(dealId);
+    } 
+
+
+    // // Request a dispute, transfer dispute fee to Voting contract
+    // function requestDispute(string calldata reason) external {
+    //     uint256 disputeFee = 20 * 10**18; // 20 PYUSD, assuming 18 decimals
+    //     require(balances[msg.sender] >= disputeFee, "Insufficient balance for dispute");
+
+    //     // Deduct dispute fee from user deal
+    //     balances[msg.sender] -= disputeFee;
+    //     require(pyusd.transfer(address(protocolContract), disputeFee), "Dispute transfer failed");
+
+    //     // Notify Voting contract
+    //     protocolContract.createDispute(msg.sender, disputeFee, reason);
+    //     emit DisputeRequested(0, msg.sender); // disputeId will be generated in Voting contract
+    // }
+
+    // // Apply dispute result: adjust balances based on outcome (optional)
+    // function applyDisputeResult(uint256 disputeId, address[] calldata judges, uint256 totalReward) external {
+    //     require(msg.sender == address(protocolContract), "Unauthorized");
+    //     // Distribute rewards if needed, example:
+    //     for(uint i=0; i<judges.length; i++){
+    //         pyusd.transfer(judges[i], totalReward / judges.length);
+    //     }
+    //     // 2 PYUSD stays in Voting contract, handled internally there
+    //     disputeResults[disputeId] = true;
+    // }
+
+
+    function withdraw(uint256 _amount) external onlyUser {
+        require(users[msg.sender].balance >= _amount, "Insufficient balance");
+
+        users[msg.sender].balance -= _amount;
+        pyusd.safeTransfer(msg.sender, _amount);
+
+        emit UserWithdrew(msg.sender, _amount);
+    }
+
+
 
     // ====================================
     //          PUBLIC FUNCTIONS          
     // ====================================
 
+    // ====================================
+    //         INTERNAL FUNCTIONS          
+    // ====================================
+
+    // function setDisputeContract(address _dispute) internal {
+    //     require(address(protocolContract) == address(0), "Already set");
+    //     protocolContract = IProtocolContract(_dispute);
+    // }
+
+    // ====================================
+    //          PRIVATE FUNCTIONS          
+    // ====================================
+
+    // Deposit funds to deal
+    function deposit(uint256 _amount) private {
+        require(pyusd.transferFrom(msg.sender, address(this), _amount), "Transfer failed");
+
+        users[msg.sender].balance += _amount;
+
+        emit PaymentDeposited(msg.sender, _amount);
+    }
 
     // ====================================
     //        PURE & VIEW FUNCTIONS          

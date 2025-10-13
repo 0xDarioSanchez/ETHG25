@@ -62,22 +62,21 @@ contract FactoryContract {
     //          PUBLIC FUNCTIONS          
     // ====================================
 
-    function createMarketplace(
-        uint256 _feePercent,
-        address _token
-    ) external {
+    function createMarketplace( uint256 _feePercent, address _token) external {
         Marketplace newMarketplace = new Marketplace(msg.sender, _feePercent, _token);
         marketplaces.push(address(newMarketplace));
+
         emit MarketplaceCreated(address(newMarketplace), msg.sender);
     }
 
-    function getMarketplaces() external view returns(address[] memory) {
-        return marketplaces;
-    }
 
     // ====================================
     //        PURE & VIEW FUNCTIONS          
     // ====================================
+
+    function getMarketplaces() external view returns(address[] memory) {
+        return marketplaces;
+    }
 
     // ====================================
     //              OTHERS          

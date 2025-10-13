@@ -20,10 +20,9 @@ TODO
 - [ ] Write unit tests for escrow creation, release, and dispute lifecycle  
 - [ ] Integrate **Envio HyperIndex** to index Escrow and Dispute events in real time  
 - [ ] Document ABI interfaces and protocol workflows for developers  
-- [ ] Implement an on-chain reputation scoring system based on transaction history and disputes  
+- [ ] Implement an on-chain reputation scoring system based on previous disputes results
 - [ ] Add a module registration system for external developer contributions  
 - [ ] Support multi-token escrows and wrapped asset payments  
-- [ ] Integrate AI-assisted arbitration or dispute scoring  
 - [ ] Demonstrate a cross-chain escrow flow between Ethereum and an Avail-supported network  
 - [ ] Build analytics dashboards using **Envio HyperIndex** for usage metrics  
 - [ ] Launch a developer documentation portal with examples and tutorials  

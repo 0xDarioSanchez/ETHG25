@@ -6,17 +6,14 @@ pragma solidity 0.8.30;
 // ====================================
 
 import "forge-std/console.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-//import "@openzeppelin/contracts/access/Ownable.sol";
-
+// import {MarketplaceInstance as Marketplace } from "./MarketplaceInstance.sol";
+import "./interfaces/IPYUSD.sol";
 
 // ====================================
 //             INTERFACE          
 // ====================================
-
-interface IPYUSD {
-    function transfer(address to, uint256 amount) external returns(bool);
-}
 
 
 // ====================================
@@ -29,6 +26,7 @@ interface IPYUSD {
  * @author 0xDarioSanchez
  */
 contract ProtocolContract {
+    using SafeERC20 for IERC20;
 
     // ====================================
     //          STATE VARIABLES          
@@ -123,31 +121,31 @@ contract ProtocolContract {
         d.voted[msg.sender] = true;
     }
 
-    function resolveDispute(uint256 disputeId) external {
-        Dispute storage d = disputes[disputeId];
-        require(!d.resolved, "Already resolved");
+    // function resolveDispute(uint256 disputeId) external {
+    //     Dispute storage d = disputes[disputeId];
+    //     require(!d.resolved, "Already resolved");
 
-        bool outcomeForRequester = d.votesFor > d.votesAgainst;
-        d.resolved = true;
+    //     bool outcomeForRequester = d.votesFor > d.votesAgainst;
+    //     d.resolved = true;
 
-        // distribute remaining PYUSD (after keeping 2) to judges that voted for winner
-        uint256 rewardPool = d.amount - keepAmount;
-        address[] memory winners;
+    //     // distribute remaining PYUSD (after keeping 2) to judges that voted for winner
+    //     uint256 rewardPool = d.amount - keepAmount;
+    //     address[] memory winners;
 
-        // determine winners
-        for(uint i=0; i<disputes[disputeId].votedForWinner.length; i++){
-            winners[i] = disputes[disputeId].votedForWinner[i];
-        }
+    //     // determine winners
+    //     for(uint i=0; i<disputes[disputeId].votedForWinner.length; i++){
+    //         winners[i] = disputes[disputeId].votedForWinner[i];
+    //     }
 
-        if(winners.length > 0){
-            uint256 rewardPerJudge = rewardPool / winners.length;
-            for(uint i=0; i<winners.length; i++){
-                pyusd.transfer(winners[i], rewardPerJudge);
-            }
-        }
+    //     if(winners.length > 0){
+    //         uint256 rewardPerJudge = rewardPool / winners.length;
+    //         for(uint i=0; i<winners.length; i++){
+    //             pyusd.safeTransfer(winners[i], rewardPerJudge);
+    //         }
+    //     }
 
-        emit DisputeResolved(disputeId, outcomeForRequester ? d.requester : address(0));
-    }
+    //     emit DisputeResolved(disputeId, outcomeForRequester ? d.requester : address(0));
+    // }
 
     // ====================================
     //          PUBLIC FUNCTIONS          
