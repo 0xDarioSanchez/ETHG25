@@ -28,7 +28,6 @@ contract MarketplaceInstance {
     // ====================================
 
     address public immutable owner;             //Owner of the contract, the one who deployed it
-    address public immutable token;             //PYUSD token address
     uint256 public feePercent;                  //Fee percentage charged on each deal, in PYUSD
     address public immutable protocolAddress;   //Address of the Protocol contract
     IERC20 public pyusd;                        //Interface for PYUSD token
@@ -190,26 +189,27 @@ contract MarketplaceInstance {
     //Allow users registered as beneficiaries to create deals
     //It must be accepted by the payer to be effective
     //Only `amount` can be updated after creation, but not if already accepted
-    function createDeal(address _receiver, uint256 _amount, uint16 _duration) external {
-        require(_amount > 0, "Amount must be greater than zero");
-        require(_receiver != address(0), "Invalid receiver address");
-        require(users[msg.sender].isBeneficiary, "User not registered as beneficiary");
+function createDeal(address _payer, uint256 _amount, uint16 _duration) external {
+    require(_amount > 0, "Amount must be greater than zero");
+    require(_payer != address(0), "Invalid payer address");
+    require(users[msg.sender].isBeneficiary, "User not registered as beneficiary");
+    require(users[_payer].isPayer, "Target not registered as payer");
 
-        deals[dealIdCounter] = Deal({
-            dealId: dealIdCounter,
-            beneficiary: msg.sender,
-            payer: _receiver,
-            amount: _amount,
-            duration: _duration,
-            startedAt: 0,
-            accepted: false,
-            disputed: false
-        });
+    deals[dealIdCounter] = Deal({
+        dealId: dealIdCounter,
+        payer: _payer,
+        beneficiary: msg.sender,
+        amount: _amount,
+        duration: _duration,
+        startedAt: 0,
+        accepted: false,
+        disputed: false
+    });
 
-        emit DealCreated(dealIdCounter, msg.sender, _receiver, _amount);
+    emit DealCreated(dealIdCounter, _payer, msg.sender, _amount);
 
-        dealIdCounter += 1;
-    }
+    dealIdCounter += 1;
+}
 
 
     function updateDealAmount(uint64 _dealId, uint256 _newAmount) external dealExists(_dealId) {
@@ -233,7 +233,7 @@ contract MarketplaceInstance {
         require(!deal.accepted, "Deal already accepted");
         require(_newDuration > 0, "Duration must be greater than zero");
 
-        deal.amount = _newDuration;
+        deal.duration = _newDuration;
 
         emit DealDurationUpdated(_dealId, _newDuration);
     }
@@ -248,7 +248,7 @@ contract MarketplaceInstance {
         deal.accepted = true;
         deal.startedAt = block.timestamp;
 
-        IERC20(token).safeTransfer(address(this), deal.amount);
+        pyusd.safeTransferFrom(msg.sender, address(this), deal.amount);
 
         emit DealAccepted(_dealId);
     }

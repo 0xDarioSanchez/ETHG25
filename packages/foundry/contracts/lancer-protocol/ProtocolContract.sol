@@ -44,6 +44,7 @@ contract ProtocolContract {
 
     struct Dispute {
         uint32 disputeId;           //ID to connect the dispute with the corresponding deal
+        address contractAddress;    //Address of the contract from where the dispute was opened
         address requester;          //The one who opens the dispute. It will always be the payer
         address beneficiary;        //The one who is disputed against.
         string requesterProofs;     //Proofs provided by the requester
@@ -74,7 +75,7 @@ contract ProtocolContract {
     // ====================================
 
     event JudgeRegistered(address indexed judge);
-    event DisputeCreated(uint256 indexed disputeId, address indexed requester);
+    event DisputeCreated(uint256 indexed disputeId, address indexed requester, address indexed contractAddress);
     event DisputeResolved(uint256 indexed disputeId, address winner);
 
     // ====================================
@@ -108,7 +109,7 @@ contract ProtocolContract {
 
         dispute.requester = _requester;
         dispute.requesterProofs = _proofs;
-        emit DisputeCreated(disputeId, _requester);
+        emit DisputeCreated(disputeId, _requester, msg.sender);
     }
 
     function updateDisputeForPayer(uint256 _disputeId, address _requester, string calldata _proof) external {
