@@ -62,8 +62,9 @@ contract FactoryContract {
     //          PUBLIC FUNCTIONS          
     // ====================================
 
-    function createMarketplace( uint256 _feePercent, address _token) external {
-        Marketplace newMarketplace = new Marketplace(msg.sender, _feePercent, _token);
+    function createMarketplace( uint256 _feePercent, address _token, address _protocol) external {
+        //TODO protocol address must be hard-coded to the address of the deployed ProtocolContract
+        Marketplace newMarketplace = new Marketplace(msg.sender, _feePercent, _token, _protocol);
         marketplaces.push(address(newMarketplace));
 
         emit MarketplaceCreated(address(newMarketplace), msg.sender);

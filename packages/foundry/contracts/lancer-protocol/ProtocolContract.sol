@@ -43,14 +43,17 @@ contract ProtocolContract {
     }
 
     struct Dispute {
-        address requester;
-        uint256 amount; // dispute fee paid
-        string reason;
-        uint256 votesFor;
-        uint256 votesAgainst;
-        bool resolved;
-        mapping(address => bool) voted;
-        address[] votedForWinner; // judges that voted for winning side
+        uint32 disputeId;           //ID to connect the dispute with the corresponding deal
+        address requester;          //The one who opens the dispute. It will always be the payer
+        address beneficiary;        //The one who is disputed against.
+        string requesterProofs;     //Proofs provided by the requester
+        string beneficiaryProofs;   //Proofs provided by the beneficiary
+        bool waitingForJudges;      //True if waiting for the judges to be assigned
+        bool isOpen;                //True if the dispute is open to vote, False if it is closed
+        uint256 votesFor;           //Votes in favor of the requester
+        uint256 votesAgainst;       //Votes against the requester
+        bool resolved;              //True if the dispute has been resolved
+        mapping(address => bool) votes; //Connects judge address to their vote
     }
 
     mapping(address => Judge) public judges;
@@ -97,28 +100,41 @@ contract ProtocolContract {
         emit JudgeRegistered(msg.sender);
     }
 
-    function createDispute(address requester, uint256 amount, string calldata reason) external {
+    //TODO it must be ensured that only the Marketplace contract can call this function
+    function createDispute(address _requester, string calldata _proofs) external {
         uint256 disputeId = disputes.length;
         disputes.push();
-        Dispute storage d = disputes[disputeId];
-        d.requester = requester;
-        d.amount = amount;
-        d.reason = reason;
-        emit DisputeCreated(disputeId, requester);
+        Dispute storage dispute = disputes[disputeId];
+
+        dispute.requester = _requester;
+        dispute.requesterProofs = _proofs;
+        emit DisputeCreated(disputeId, _requester);
     }
 
-    function vote(uint256 disputeId, bool support) external {
-        Dispute storage d = disputes[disputeId];
+    function updateDisputeForPayer(uint256 _disputeId, address _requester, string calldata _proof) external {
+        Dispute storage dispute = disputes[_disputeId];
+        require(dispute.requester == _requester, "Not the requester");
+        dispute.requesterProofs = string(abi.encodePacked(dispute.requesterProofs, " | ", _proof));
+    }
+
+    function updateDisputeForBeneficiary(uint256 _disputeId, address _beneficiary, string calldata _proof) external {
+        Dispute storage dispute = disputes[_disputeId];
+        require(dispute.beneficiary == _beneficiary, "Not the beneficiary");
+        dispute.beneficiaryProofs = string(abi.encodePacked(dispute.beneficiaryProofs, " | ", _proof));
+    }
+
+    function vote(uint256 _disputeId, bool _support) external {
+        Dispute storage dispute = disputes[_disputeId];
         Judge storage j = judges[msg.sender];
         require(j.isRegistered, "Not a judge");
-        require(!d.voted[msg.sender], "Already voted");
+        // require(!d.voted[msg.sender], "Already voted");
 
-        if(support){
-            d.votesFor += j.reputation;
+        if(_support){
+            dispute.votesFor += j.reputation;
         } else {
-            d.votesAgainst += j.reputation;
+            dispute.votesAgainst += j.reputation;
         }
-        d.voted[msg.sender] = true;
+        // dispute.voted[msg.sender] = true;
     }
 
     // function resolveDispute(uint256 disputeId) external {

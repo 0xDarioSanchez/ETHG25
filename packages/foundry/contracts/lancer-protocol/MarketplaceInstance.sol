@@ -105,10 +105,10 @@ contract MarketplaceInstance {
         _;
     }
 
-    // modifier notAccepted(uint64 dealId) {
-    //     require(!deals[dealId].accepted, "Deal not accepted");
-    //     _;
-    // }
+    modifier disputeExists(uint64 disputeId) {
+        require(disputes[disputeId].dealId > 0, "Dispute does not exist");
+        _;
+    }
 
     // ====================================
     //              EVENTS          
@@ -212,30 +212,30 @@ contract MarketplaceInstance {
     }
 
 
-    function updateDealAmount(uint64 _dealId, uint256 newAmount) external dealExists(_dealId) {
+    function updateDealAmount(uint64 _dealId, uint256 _newAmount) external dealExists(_dealId) {
         Deal storage deal = deals[_dealId];
 
         require(msg.sender == deal.payer, "Only payer can update the deal");
         require(!deal.accepted, "Deal already accepted");
-        require(newAmount > 0, "Amount must be greater than zero");
+        require(_newAmount > 0, "Amount must be greater than zero");
 
-        deal.amount = newAmount;
+        deal.amount = _newAmount;
 
-        emit DealAmountUpdated(_dealId, newAmount);
+        emit DealAmountUpdated(_dealId, _newAmount);
     }
 
     //Function to update the duration of a deal, only if not accepted yet
     //Duration is in days
-    function updateDealDuration(uint64 _dealId, uint16 newDuration) external dealExists(_dealId) {
+    function updateDealDuration(uint64 _dealId, uint16 _newDuration) external dealExists(_dealId) {
         Deal storage deal = deals[_dealId];
 
         require(msg.sender == deal.payer, "Only payer can update the deal");
         require(!deal.accepted, "Deal already accepted");
-        require(newDuration > 0, "Duration must be greater than zero");
+        require(_newDuration > 0, "Duration must be greater than zero");
 
-        deal.amount = newDuration;
+        deal.amount = _newDuration;
 
-        emit DealDurationUpdated(_dealId, newDuration);
+        emit DealDurationUpdated(_dealId, _newDuration);
     }
 
 
@@ -315,7 +315,9 @@ contract MarketplaceInstance {
 
     // Request a dispute, transfer dispute fee to Voting contract
     function requestDispute(uint64 _dealId, string calldata _proof) external dealExists(_dealId) onlyPayer(_dealId) {
-        pyusd.safeTransferFrom(msg.sender, protocolAddress, 20 * 10**18); // 20 PYUSD, assuming 18 decimals
+        // Intentionally hard-coded 20 PYUSD fee for dispute
+        // In the future I want to create different levels of disputes, e.g. pay more for disputes with more judges
+        pyusd.safeTransferFrom(msg.sender, protocolAddress, 20 * 10**18); 
         //TODO check amount of decimals for PYUSD
         Deal storage deal = deals[_dealId];
         require(deal.accepted, "Deal not accepted");
@@ -323,34 +325,54 @@ contract MarketplaceInstance {
 
         deal.disputed = true;
 
-        // Notify Protocol contract
+        // Call Protocol contract
         protocolContract.createDispute(msg.sender, _dealId, _proof);
 
         emit DisputeCreated(_dealId, msg.sender);
-
     }    
-    //     uint256 disputeFee = 20 * 10**18; // 20 PYUSD, assuming 18 decimals
-    //     require(balances[msg.sender] >= disputeFee, "Insufficient balance for dispute");
 
-    //     // Deduct dispute fee from user deal
-    //     balances[msg.sender] -= disputeFee;
-    //     require(pyusd.transfer(address(protocolContract), disputeFee), "Dispute transfer failed");
 
-    //     // Notify Voting contract
-    //     protocolContract.createDispute(msg.sender, disputeFee, reason);
-    //     emit DisputeRequested(0, msg.sender); // disputeId will be generated in Voting contract
-    // }
+    function addDisputeEvidenceForPayer(uint64 _disputeId, string calldata _proof) external disputeExists(_disputeId) {
+        Dispute storage dispute = disputes[_disputeId];
+        require(msg.sender == dispute.requester, "Only requester can add evidence");
+        require(bytes(_proof).length > 0, "Proof cannot be empty");
 
-    // // Apply dispute result: adjust balances based on outcome (optional)
-    // function applyDisputeResult(uint256 disputeId, address[] calldata judges, uint256 totalReward) external {
-    //     require(msg.sender == address(protocolContract), "Unauthorized");
-    //     // Distribute rewards if needed, example:
-    //     for(uint i=0; i<judges.length; i++){
-    //         pyusd.transfer(judges[i], totalReward / judges.length);
-    //     }
-    //     // 2 PYUSD stays in Voting contract, handled internally there
-    //     disputeResults[disputeId] = true;
-    // }
+        // Call Protocol contract
+        protocolContract.updateDisputeForPayer(_disputeId, msg.sender, _proof);
+    }
+
+
+    function addDisputeEvidenceForBeneficiary(uint64 _disputeId, string calldata _proof) external disputeExists(_disputeId) {
+        Dispute storage dispute = disputes[_disputeId];
+        Deal memory deal = deals[dispute.dealId];
+        require(msg.sender == deal.beneficiary, "Only beneficiary can add evidence");
+        require(bytes(_proof).length > 0, "Proof cannot be empty");
+
+        dispute.beneficiaryProofs = string(abi.encodePacked(dispute.beneficiaryProofs, " | ", _proof));
+
+        // Call Protocol contract
+        protocolContract.updateDisputeForBeneficiary(_disputeId, msg.sender, _proof);
+    }
+
+    // Called by Protocol contract once dispute is resolved
+    // Apply dispute result: adjust balances based on outcome (optional)
+    function applyDisputeResult(uint64 _disputeId, bool _result) external {
+        require(msg.sender == address(protocolContract), "Unauthorized");
+        
+        Dispute memory dispute = disputes[_disputeId];
+        Deal memory deal = deals[dispute.dealId];
+        require(deal.disputed, "Deal not disputed");
+
+        if(_result){
+            // If the payer wins, update their balance minus fee
+            uint256 fee = (deal.amount * feePercent) / 100;
+            users[deal.payer].balance += (deal.amount - fee);
+        } else {
+            // If the beneficiary wins, update their balance minus fee
+            uint256 fee = (deal.amount * feePercent) / 100;
+            users[deal.beneficiary].balance += (deal.amount - fee);
+        }
+    }
 
 
     function withdraw(uint256 _amount) external onlyUser {
