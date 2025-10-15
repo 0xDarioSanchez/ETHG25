@@ -9,7 +9,7 @@ import "../contracts/mocks/MockPYUSD.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 
-// ========== MAIN TEST ==========
+// ========== MAIN TESTS ==========
 
 contract MarketplaceInstanceTest is Test {
     MarketplaceInstance marketplace;
@@ -32,7 +32,7 @@ contract MarketplaceInstanceTest is Test {
         // Deploy marketplace
         marketplace = new MarketplaceInstance(
             owner,
-            2, // feePercent
+            2, // feePercent, it can be modified later
             address(pyusd),
             address(protocol)
         );
@@ -51,23 +51,23 @@ contract MarketplaceInstanceTest is Test {
         pyusd.approve(address(marketplace), type(uint256).max);
         vm.stopPrank();
     }
+    function test_UserRegistration() public view {
+        (
+            address userAddress,
+            uint256 balance,
+            ,
+            ,
+            bool isPayer,
+            ,
+            bool isJudge
+        ) = marketplace.users(payer);
 
-function test_UserRegistration() public view {
-    (
-        address userAddress,
-        uint256 balance,
-        ,
-        ,
-        bool isPayer,
-        ,
-        bool isJudge
-    ) = marketplace.users(payer);
+        assertEq(userAddress, payer);
+        assertTrue(isPayer);
+        assertFalse(isJudge);
+        assertEq(balance, 0);
+    }
 
-    assertEq(userAddress, payer);
-    assertTrue(isPayer);
-    assertFalse(isJudge);
-    assertEq(balance, 0);
-}
 
     function test_CreateDeal() public {
         vm.startPrank(beneficiary);
@@ -79,6 +79,7 @@ function test_UserRegistration() public view {
         assertEq(storedBeneficiary, beneficiary);
         assertEq(amount, 100 ether);
     }
+
 
     function test_UpdateDealAmount() public {
         vm.startPrank(beneficiary);
@@ -93,6 +94,7 @@ function test_UserRegistration() public view {
         assertEq(newAmount, 200 ether);
     }
 
+
     function test_AcceptDeal() public {
         vm.startPrank(beneficiary);
         marketplace.createDeal(payer, 50 ether, 3);
@@ -105,6 +107,7 @@ function test_UserRegistration() public view {
         (,,,,,,bool accepted,) = marketplace.deals(0);
         assertTrue(accepted);
     }
+
 
     function test_FinishDeal() public {
         vm.startPrank(beneficiary);
@@ -121,6 +124,7 @@ function test_UserRegistration() public view {
         assertEq(newBalance, 98 ether); // 2% fee applied
     }
 
+
     function test_RequestDispute() public {
         vm.startPrank(beneficiary);
         marketplace.createDeal(payer, 100 ether, 3);
@@ -131,10 +135,8 @@ function test_UserRegistration() public view {
         marketplace.acceptDeal(0);
         protocol.createDispute(msg.sender, "example string");
         vm.stopPrank();
-
-        // Expecting an event from the mock protocol
-        // (you can verify with `forge test -vvv` to see event logs)
     }
+
 
     function test_WithdrawBalance() public {
         vm.startPrank(beneficiary);

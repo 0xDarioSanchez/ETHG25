@@ -8,13 +8,9 @@ pragma solidity 0.8.30;
 import "forge-std/console.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-// import {MarketplaceInstance as Marketplace } from "./MarketplaceInstance.sol";
 import "./interfaces/IPYUSD.sol";
-
-// ====================================
-//             INTERFACE          
-// ====================================
-
+import "./interfaces/IProtocolContract.sol";
+import "./interfaces/IFactory.sol";
 
 // ====================================
 //              CONTRACT          
@@ -34,11 +30,13 @@ contract ProtocolContract {
 
     address public owner;
     IPYUSD public pyusd;
+    address public factory;
 
     uint256 public keepAmount = 2 * 10**18; // 2 PYUSD kept in contract
+    uint64 public disputeCount;
 
     struct Judge {
-        bool isRegistered;
+        address judgeAddress;
         uint256 reputation;
     }
 
@@ -54,11 +52,12 @@ contract ProtocolContract {
         uint256 votesFor;           //Votes in favor of the requester
         uint256 votesAgainst;       //Votes against the requester
         bool resolved;              //True if the dispute has been resolved
-        mapping(address => bool) votes; //Connects judge address to their vote
+        address[] voters;           //List of judges that voted in the dispute
+        bool[] votes;             //List of votes corresponding to the judges in the voters array
     }
 
     mapping(address => Judge) public judges;
-    Dispute[] public disputes;
+    mapping(uint64 => Dispute) public disputes;
 
 
     // ====================================
@@ -86,48 +85,50 @@ contract ProtocolContract {
     //           CONSTRUCTOR          
     // ====================================
 
-    constructor(address _owner, address _pyusd) {
+    constructor(address _owner, address _pyusd, address _factory) {
         owner = _owner;
         pyusd = IPYUSD(_pyusd);
+        factory = _factory;
     }
 
     // ====================================
     //         EXTERNAL FUNCTIONS          
     // ====================================
 
-    function registerJudge() external {
-        require(!judges[msg.sender].isRegistered, "Already registered");
-        judges[msg.sender] = Judge(true, 1);
+    function registerAsJudge() external {
+        //require(judges[msg.sender] == Judge(address(0), 0), "Already registered");
         emit JudgeRegistered(msg.sender);
     }
 
     //TODO it must be ensured that only the Marketplace contract can call this function
     function createDispute(address _requester, string calldata _proofs) external {
-        uint256 disputeId = disputes.length;
-        disputes.push();
-        Dispute storage dispute = disputes[disputeId];
+        require(IFactory(factory).isDeployedMarketplace(msg.sender), "Unauthorized");
+
+        Dispute storage dispute = disputes[disputeCount];
 
         dispute.requester = _requester;
         dispute.requesterProofs = _proofs;
-        emit DisputeCreated(disputeId, _requester, msg.sender);
+        emit DisputeCreated(disputeCount, _requester, msg.sender);
+
+        disputeCount++;
     }
 
-    function updateDisputeForPayer(uint256 _disputeId, address _requester, string calldata _proof) external {
+    function updateDisputeForPayer(uint64 _disputeId, address _requester, string calldata _proof) external {
         Dispute storage dispute = disputes[_disputeId];
         require(dispute.requester == _requester, "Not the requester");
         dispute.requesterProofs = string(abi.encodePacked(dispute.requesterProofs, " | ", _proof));
     }
 
-    function updateDisputeForBeneficiary(uint256 _disputeId, address _beneficiary, string calldata _proof) external {
+    function updateDisputeForBeneficiary(uint64 _disputeId, address _beneficiary, string calldata _proof) external {
         Dispute storage dispute = disputes[_disputeId];
         require(dispute.beneficiary == _beneficiary, "Not the beneficiary");
         dispute.beneficiaryProofs = string(abi.encodePacked(dispute.beneficiaryProofs, " | ", _proof));
     }
 
-    function vote(uint256 _disputeId, bool _support) external {
+    function vote(uint64 _disputeId, bool _support) external {
         Dispute storage dispute = disputes[_disputeId];
         Judge storage j = judges[msg.sender];
-        require(j.isRegistered, "Not a judge");
+        require(judges[msg.sender].judgeAddress != address(0), "Not a judge");
         // require(!d.voted[msg.sender], "Already voted");
 
         if(_support){

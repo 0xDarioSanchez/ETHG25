@@ -4,7 +4,8 @@ pragma solidity 0.8.30;
 
 interface IProtocolContract {
     function createDispute(address requester, uint256 amount, string calldata reason) external;
-
     function updateDisputeForPayer(uint256 disputeId, address requester, string calldata proof) external;
     function updateDisputeForBeneficiary(uint256 disputeId, address beneficiary, string calldata proof) external;
+
+    function vote(uint256 disputeId, bool support) external;
 }

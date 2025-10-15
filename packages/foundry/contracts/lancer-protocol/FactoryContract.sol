@@ -30,7 +30,7 @@ contract FactoryContract {
     //          STATE VARIABLES          
     // ====================================
 
-    address[] public marketplaces;
+    mapping(address => bool) public isMarketplace;
 
     // ====================================
     //             MODIFIERS          
@@ -41,7 +41,7 @@ contract FactoryContract {
     //              EVENTS          
     // ====================================
 
-    event MarketplaceCreated(address indexed marketplace, address indexed creator);
+    event MarketplaceDeployed(address indexed marketplace, address indexed creator);
 
     // ====================================
     //           CUSTOM ERRORs          
@@ -62,12 +62,12 @@ contract FactoryContract {
     //          PUBLIC FUNCTIONS          
     // ====================================
 
-    function createMarketplace( uint256 _feePercent, address _token, address _protocol) external {
-        //TODO protocol address must be hard-coded to the address of the deployed ProtocolContract
+    function createMarketplace( uint256 _feePercent, address _token, address _protocol) external returns (address) {
         Marketplace newMarketplace = new Marketplace(msg.sender, _feePercent, _token, _protocol);
-        marketplaces.push(address(newMarketplace));
+        isMarketplace[address(newMarketplace)] = true;
 
-        emit MarketplaceCreated(address(newMarketplace), msg.sender);
+        emit MarketplaceDeployed(address(newMarketplace), msg.sender);
+        return address(newMarketplace);
     }
 
 
@@ -75,8 +75,8 @@ contract FactoryContract {
     //        PURE & VIEW FUNCTIONS          
     // ====================================
 
-    function getMarketplaces() external view returns(address[] memory) {
-        return marketplaces;
+    function isDeployedMarketplace(address _marketplace) external view returns (bool) {
+        return isMarketplace[_marketplace];
     }
 
     // ====================================
