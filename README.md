@@ -13,7 +13,7 @@ TODO
 - [ ] Implement `ProtocolContract` contract for handling disputes and emitting indexed events  
 - [ ] Implement an on-chain reputation scoring system based on previous disputes results
 - [ ] Implement a tier system for judges, based on reputation
-- [ ] Write unit tests for all the contracts
+- [ ] Write unit and integrations tests for all the contracts
 - [ ] Deploy **Lancer Protocol** contracts to testnet (e.g., Sepolia or Avail testnet)  
 - [ ] Verify contracts on **Blockscout** or **Etherscan** for transparency  
 

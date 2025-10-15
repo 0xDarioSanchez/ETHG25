@@ -7,6 +7,7 @@ pragma solidity 0.8.30;
 
 import "forge-std/console.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "./interfaces/IPYUSD.sol";
 import "./interfaces/IProtocolContract.sol";
@@ -29,33 +30,37 @@ contract ProtocolContract {
     // ====================================
 
     address public owner;
-    IPYUSD public pyusd;
+    IERC20 public pyusd;
     address public factory;
 
-    uint256 public keepAmount = 2 * 10**18; // 2 PYUSD kept in contract
-    uint64 public disputeCount;
-    uint8 public numberOfVotes = 5; // Number of votes required to resolve a dispute
+    uint256 private contractBalance;            // Balance of PYUSD in the contract that is able to be withdrawn by the owner, so is not the total balance of the contract!
+    uint64 public disputeCount;                 // Counter for dispute IDs
+    uint8 public numberOfVotes = 5;             // Number of votes required to resolve a dispute
+
+    uint8 constant PYUSD_DECIMALS = 6;          // Decimals of PYUSD token
+    uint256 public disputePrice = 10 * 10**PYUSD_DECIMALS; // Price to open a dispute, 10 PYUSD
 
     struct Judge {
-        address judgeAddress;
-        int8 reputation;
+        address judgeAddress;       // Address of the corresponding judge
+        uint256 balance;            // Balance of PYUSD that the judge can withdraw
+        int8 reputation;            // Reputation of the judge, it can be negative
     }
 
     struct Dispute {
-        uint32 disputeId;           //ID to connect the dispute with the corresponding deal
-        address contractAddress;    //Address of the contract from where the dispute was opened
-        address requester;          //The one who opens the dispute. It will always be the payer
-        address beneficiary;        //The one who is disputed against.
-        string requesterProofs;     //Proofs provided by the requester
-        string beneficiaryProofs;   //Proofs provided by the beneficiary
-        address[] ableToVote;       //List of judges that can vote in the dispute
-        address[] voters;           //List of judges that already voted in the dispute
-        bool[] votes;               //List of votes corresponding to the judges in the voters array, it seems redundant but it is to easily assign tokens and reputation
-        uint8 votesFor;             //Votes in favor of the requester
-        uint8 votesAgainst;         //Votes against the requester
-        bool waitingForJudges;      //True if waiting for the judges to be assigned
-        bool isOpen;                //True if the dispute is open to vote, False if it is closed
-        bool resolved;              //True if the dispute has been resolved
+        uint32 disputeId;           // ID to connect the dispute with the corresponding deal
+        address contractAddress;    // Address of the contract from where the dispute was opened
+        address requester;          // The one who opens the dispute. It will always be the payer
+        address beneficiary;        // The one who is disputed against.
+        string requesterProofs;     // Proofs provided by the requester
+        string beneficiaryProofs;   // Proofs provided by the beneficiary
+        address[] ableToVote;       // List of judges that can vote in the dispute
+        address[] voters;           // List of judges that already voted in the dispute
+        bool[] votes;               // List of votes corresponding to the judges in the voters array, it seems redundant but it is to easily assign tokens and reputation
+        uint8 votesFor;             // Votes in favor of the requester
+        uint8 votesAgainst;         // Votes against the requester
+        bool waitingForJudges;      // True if waiting for the judges to be assigned
+        bool isOpen;                // True if the dispute is open to vote, False if it is closed
+        bool resolved;              // True if the dispute has been resolved
     }
 
     mapping(address => Judge) public judges;
@@ -89,7 +94,7 @@ contract ProtocolContract {
 
     constructor(address _owner, address _pyusd) {
         owner = _owner;
-        pyusd = IPYUSD(_pyusd);
+        pyusd = IERC20(_pyusd);
     }
 
     // ====================================
@@ -108,7 +113,7 @@ contract ProtocolContract {
     /// Anyone can register as a judge, starting with 0 reputation
     function registerAsJudge() external {
         require(judges[msg.sender].judgeAddress == address(0), "Already registered");
-        judges[msg.sender] = Judge(msg.sender, 0);
+        judges[msg.sender] = Judge(msg.sender, 0, 0);
 
         emit JudgeRegistered(msg.sender);
     }
@@ -201,6 +206,39 @@ contract ProtocolContract {
         if (dispute.voters.length == numberOfVotes) {
             dispute.isOpen = false;
             dispute.resolved = true;
+
+            //For saving gas
+            uint8 positiveVotes = dispute.votesFor;
+            uint8 negativeVotes = dispute.votesAgainst;
+
+            uint256 prize = disputePrice * PYUSD_DECIMALS / numberOfVotes;
+
+            // If the requester wins
+            if (positiveVotes > negativeVotes) {
+                for (uint256 i = 0; i < dispute.voters.length; i++) {
+                    if (dispute.votes[i]) {
+                        judges[dispute.voters[i]].reputation++;
+                        judges[dispute.voters[i]].balance += prize;
+                    } else {
+                        judges[dispute.voters[i]].reputation--;
+                    }
+                }
+                contractBalance += prize * negativeVotes;
+                emit DisputeResolved(_disputeId, dispute.requester);
+            }
+            // If the beneficiaty wins
+            else {
+                for (uint256 i = 0; i < dispute.voters.length; i++) {
+                    if (!dispute.votes[i]) {
+                        judges[dispute.voters[i]].reputation++;
+                        judges[dispute.voters[i]].balance += prize;
+                    } else {
+                        judges[dispute.voters[i]].reputation--;
+                    }
+                }
+                contractBalance += prize * positiveVotes;
+                emit DisputeResolved(_disputeId, dispute.beneficiary);
+            }
         }
     }
 
@@ -213,17 +251,30 @@ contract ProtocolContract {
     }
 
 
-    // ====================================
-    //          PUBLIC FUNCTIONS          
-    // ====================================
+    /// Function that allows a judge to withdraw their balance of PYUSD tokens
+    function judgeWithdraw() external {
+        Judge storage judge = judges[msg.sender];
 
-    /**
-     * Function that allows the owner to withdraw all the Ether in the contract
-     * The function can only be called by the owner of the contract as defined by the onlyOwner modifier
-     */
-    function withdraw() public onlyOwner {
-        (bool success,) = owner.call{ value: address(this).balance }("");
-        require(success, "Failed to send Ether");
+        address judgeAddress = judge.judgeAddress;
+
+        require(judgeAddress != address(0), "Not a judge");
+        require(judge.balance > 0, "No balance to withdraw");
+
+        uint256 amount = judge.balance;
+        judge.balance = 0;
+
+        pyusd.safeTransfer(judgeAddress, amount);
+    }
+
+    // Function that allows the owner to withdraw all the disponible PYUSD tokens in the contract
+    // The tokens assigned to reward judges cannot be withdrawn by the owner or anyone else except the judges
+    function withdraw() external onlyOwner {
+        uint256 balance = pyusd.balanceOf(address(this));
+        uint256 amountToWithdraw = balance - contractBalance;
+        require(amountToWithdraw > 0, "No PYUSD to withdraw");
+
+        pyusd.safeTransfer(owner, amountToWithdraw);
+        contractBalance = 0;
     }
 
     // ====================================
