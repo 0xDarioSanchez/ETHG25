@@ -130,6 +130,7 @@ contract ProtocolContract {
         dispute.requester = _requester;
         dispute.requesterProofs = _proofs;
         dispute.contractAddress = msg.sender;
+        dispute.waitingForJudges = true;
 
         emit DisputeCreated(disputeCount, _requester, msg.sender);
 

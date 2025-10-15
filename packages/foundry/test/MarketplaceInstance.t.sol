@@ -9,8 +9,6 @@ import "../contracts/mocks/MockPYUSD.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 
-// ========== MAIN TESTS ==========
-
 contract MarketplaceInstanceTest is Test {
     MarketplaceInstance marketplace;
     MockPYUSD pyusd;
