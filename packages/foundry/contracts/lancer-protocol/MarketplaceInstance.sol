@@ -29,9 +29,8 @@ contract MarketplaceInstance {
 
     address public immutable owner;             //Owner of the contract, the one who deployed it
     uint256 public feePercent;                  //Fee percentage charged on each deal, in PYUSD
-    address public immutable protocolAddress;   //Address of the Protocol contract
     IERC20 public pyusd;                        //Interface for PYUSD token
-    IProtocolContract public protocolContract;  //Interface for Protocol contract
+    IProtocolContract public protocol;          //Interface for Protocol contract
     uint64 public dealIdCounter;                //Incremental ID for deals
 
     //Struct for storing user information
@@ -137,12 +136,12 @@ contract MarketplaceInstance {
         address _owner, 
         uint256 _feePercent, 
         address _token,
-        address _protocolAddress
+        address _protocolAddress 
     ) {
         owner = _owner;
         feePercent = _feePercent;
         pyusd = IERC20(_token);
-        protocolAddress = _protocolAddress;
+        protocol = IProtocolContract(_protocolAddress);
     }
 
     // ====================================
@@ -317,7 +316,7 @@ function createDeal(address _payer, uint256 _amount, uint16 _duration) external 
     function requestDispute(uint64 _dealId, string calldata _proof) external dealExists(_dealId) onlyPayer(_dealId) {
         // Intentionally hard-coded 20 PYUSD fee for dispute
         // In the future I want to create different levels of disputes, e.g. pay more for disputes with more judges
-        pyusd.safeTransferFrom(msg.sender, protocolAddress, 20 * 10**18); 
+        pyusd.safeTransferFrom(msg.sender, address(protocol), 20 * 10**18); 
         //TODO check amount of decimals for PYUSD
         Deal storage deal = deals[_dealId];
         require(deal.accepted, "Deal not accepted");
@@ -326,7 +325,7 @@ function createDeal(address _payer, uint256 _amount, uint16 _duration) external 
         deal.disputed = true;
 
         // Call Protocol contract
-        protocolContract.createDispute(msg.sender, _dealId, _proof);
+        protocol.createDispute(msg.sender, _dealId, _proof);
 
         emit DisputeCreated(_dealId, msg.sender);
     }    
@@ -338,7 +337,7 @@ function createDeal(address _payer, uint256 _amount, uint16 _duration) external 
         require(bytes(_proof).length > 0, "Proof cannot be empty");
 
         // Call Protocol contract
-        protocolContract.updateDisputeForPayer(_disputeId, msg.sender, _proof);
+        protocol.updateDisputeForPayer(_disputeId, msg.sender, _proof);
     }
 
 
@@ -351,13 +350,13 @@ function createDeal(address _payer, uint256 _amount, uint16 _duration) external 
         dispute.beneficiaryProofs = string(abi.encodePacked(dispute.beneficiaryProofs, " | ", _proof));
 
         // Call Protocol contract
-        protocolContract.updateDisputeForBeneficiary(_disputeId, msg.sender, _proof);
+        protocol.updateDisputeForBeneficiary(_disputeId, msg.sender, _proof);
     }
 
     // Called by Protocol contract once dispute is resolved
     // Apply dispute result: adjust balances based on outcome (optional)
     function applyDisputeResult(uint64 _disputeId, bool _result) external {
-        require(msg.sender == address(protocolContract), "Unauthorized");
+        require(msg.sender == address(protocol), "Unauthorized");
         
         Dispute memory dispute = disputes[_disputeId];
         Deal memory deal = deals[dispute.dealId];
