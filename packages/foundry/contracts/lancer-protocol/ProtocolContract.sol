@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "./interfaces/IPYUSD.sol";
-import "./interfaces/IProtocolContract.sol";
+import "./interfaces/IMarketplaceInstance.sol";
 import "./interfaces/IFactory.sol";
 
 // ====================================
@@ -30,8 +30,8 @@ contract ProtocolContract {
     // ====================================
 
     address public owner;
-    IERC20 public pyusd;
     address public factory;
+    IERC20 private pyusd;
 
     uint256 private contractBalance;            // Balance of PYUSD in the contract that is able to be withdrawn by the owner, so is not the total balance of the contract!
     uint64 public disputeCount;                 // Counter for dispute IDs
@@ -204,6 +204,7 @@ contract ProtocolContract {
             dispute.votesAgainst++;
         }
 
+        // At the moment I'm assuming all disputes will be resolved with the same number of votes
         if (dispute.voters.length == numberOfVotes) {
             dispute.isOpen = false;
             dispute.resolved = true;
@@ -225,6 +226,9 @@ contract ProtocolContract {
                     }
                 }
                 contractBalance += prize * negativeVotes;
+
+                IMarketplaceInstance(dispute.contractAddress).applyDisputeResult(_disputeId, true);
+
                 emit DisputeResolved(_disputeId, dispute.requester);
             }
             // If the beneficiaty wins
@@ -238,6 +242,9 @@ contract ProtocolContract {
                     }
                 }
                 contractBalance += prize * positiveVotes;
+
+                IMarketplaceInstance(dispute.contractAddress).applyDisputeResult(_disputeId, false);
+
                 emit DisputeResolved(_disputeId, dispute.beneficiary);
             }
         }

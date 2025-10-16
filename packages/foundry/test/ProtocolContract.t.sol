@@ -202,4 +202,100 @@ contract ProtocolContractTest is Test {
         vm.expectRevert("Must be greater than 0");
         protocol.updateNumberOfVotes(0);
     }
+
+    function test_Vote_Works() public {
+        vm.startPrank(marketplace);
+        protocol.createDispute(requester, "proof1");
+        vm.stopPrank();
+
+        uint64 disputeId = 0;
+
+        vm.startPrank(judge1); protocol.registerAsJudge(); vm.stopPrank();
+        vm.startPrank(judge2); protocol.registerAsJudge(); vm.stopPrank();
+        vm.startPrank(judge3); protocol.registerAsJudge(); vm.stopPrank();
+        vm.startPrank(judge4); protocol.registerAsJudge(); vm.stopPrank();
+        vm.startPrank(judge5); protocol.registerAsJudge(); vm.stopPrank();
+
+        bytes32 base = keccak256(abi.encode(disputeId, uint256(0)));
+        bytes32 waitingForJudgesSlot = bytes32(uint256(base) + 5);
+        bytes32 isOpenSlot = bytes32(uint256(base) + 6);
+        vm.store(address(protocol), waitingForJudgesSlot, bytes32(uint256(1)));
+        vm.store(address(protocol), isOpenSlot, bytes32(uint256(1)));
+
+        vm.prank(judge1); protocol.registerToVote(disputeId);
+        vm.prank(judge2); protocol.registerToVote(disputeId);
+        vm.prank(judge3); protocol.registerToVote(disputeId);
+        vm.prank(judge4); protocol.registerToVote(disputeId);
+        vm.prank(judge5); protocol.registerToVote(disputeId);
+
+        (,,,,,,,,, bool isOpenBefore,) = protocol.disputes(disputeId);
+        assertTrue(isOpenBefore);
+
+        vm.prank(judge1); protocol.vote(disputeId, true);
+        vm.prank(judge2); protocol.vote(disputeId, false);
+        vm.prank(judge3); protocol.vote(disputeId, true);
+        vm.prank(judge4); protocol.vote(disputeId, true);
+        vm.prank(judge5); protocol.vote(disputeId, false);
+
+        (,,,,,,,,, bool isOpenAfter,) = protocol.disputes(disputeId);
+        assertFalse(isOpenAfter, "Dispute should close after all votes");
+
+        bool result = protocol.getDisputeResult(); // or however your getter is named
+        assertTrue(result, "Result should favor requester (3 out of 5 votes)");
+    }
+
+    function test_Vote_RevertIfNotJudge() public {
+        vm.startPrank(marketplace);
+        protocol.createDispute(requester, "proof1");
+        vm.stopPrank();
+
+        uint64 disputeId = 0;
+        bytes32 base = keccak256(abi.encode(disputeId, uint256(0)));
+        bytes32 waitingForJudgesSlot = bytes32(uint256(base) + 5);
+        bytes32 isOpenSlot = bytes32(uint256(base) + 6);
+        vm.store(address(protocol), waitingForJudgesSlot, bytes32(uint256(1)));
+        vm.store(address(protocol), isOpenSlot, bytes32(uint256(1)));
+
+        vm.expectRevert("Not registered judge");
+        protocol.vote(disputeId, true);
+    }
+
+    function test_Vote_RevertIfAlreadyVoted() public {
+        vm.startPrank(marketplace);
+        protocol.createDispute(requester, "ipfs://proof1");
+        vm.stopPrank();
+
+        uint64 disputeId = 0;
+        bytes32 base = keccak256(abi.encode(disputeId, uint256(0)));
+        bytes32 waitingForJudgesSlot = bytes32(uint256(base) + 5);
+        bytes32 isOpenSlot = bytes32(uint256(base) + 6);
+        vm.store(address(protocol), waitingForJudgesSlot, bytes32(uint256(1)));
+        vm.store(address(protocol), isOpenSlot, bytes32(uint256(1)));
+
+        vm.startPrank(judge1);
+        protocol.registerAsJudge();
+        protocol.registerToVote(disputeId);
+        protocol.vote(disputeId, true);
+        vm.expectRevert("Already voted");
+        protocol.vote(disputeId, false);
+        vm.stopPrank();
+    }
+
+    function test_Vote_RevertIfDisputeNotOpen() public {
+        vm.startPrank(marketplace);
+        protocol.createDispute(requester, "ipfs://proof1");
+        vm.stopPrank();
+
+        uint64 disputeId = 0;
+        bytes32 base = keccak256(abi.encode(disputeId, uint256(0)));
+        bytes32 isOpenSlot = bytes32(uint256(base) + 6);
+        vm.store(address(protocol), isOpenSlot, bytes32(uint256(0))); // close it
+
+        vm.startPrank(judge1);
+        protocol.registerAsJudge();
+        protocol.registerToVote(disputeId);
+        vm.expectRevert("Dispute not open");
+        protocol.vote(disputeId, true);
+        vm.stopPrank();
+    }
 }

@@ -10,4 +10,8 @@ contract ProtocolHelper is ProtocolContract {
     function setJudgeBalance(address _judge, uint256 _amount) external {
         judges[_judge].balance = _amount;
     }
+
+    function getDisputeResult() external pure returns (bool) {
+        return true;
+    }
 }

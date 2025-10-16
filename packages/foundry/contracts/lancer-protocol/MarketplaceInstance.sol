@@ -314,10 +314,10 @@ function createDeal(address _payer, uint256 _amount, uint16 _duration) external 
 
     // Request a dispute, transfer dispute fee to Voting contract
     function requestDispute(uint64 _dealId, string calldata _proof) external dealExists(_dealId) onlyPayer(_dealId) {
-        // Intentionally hard-coded 20 PYUSD fee for dispute
+        // Intentionally hard-coded 50 PYUSD fee for dispute
         // In the future I want to create different levels of disputes, e.g. pay more for disputes with more judges
-        pyusd.safeTransferFrom(msg.sender, address(protocol), 20 * 10**18); 
-        //TODO check amount of decimals for PYUSD
+        pyusd.safeTransferFrom(msg.sender, address(protocol), 50 * 10**6); 
+        
         Deal storage deal = deals[_dealId];
         require(deal.accepted, "Deal not accepted");
         require(!deal.disputed, "Deal already disputed");
