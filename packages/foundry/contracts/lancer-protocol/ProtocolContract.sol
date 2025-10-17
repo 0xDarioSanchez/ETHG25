@@ -34,7 +34,7 @@ contract ProtocolContract {
     IERC20 private pyusd;
 
     uint256 private contractBalance;            // Balance of PYUSD in the contract that is able to be withdrawn by the owner, so is not the total balance of the contract!
-    uint64 public disputeCount;                 // Counter for dispute IDs
+    uint64 public disputeCount = 1;                 // Counter for dispute IDs
     uint8 public numberOfVotes = 5;             // Number of votes required to resolve a dispute
 
     uint8 constant PYUSD_DECIMALS = 6;          // Decimals of PYUSD token
@@ -227,7 +227,7 @@ contract ProtocolContract {
                 }
                 contractBalance += prize * negativeVotes;
 
-                IMarketplaceInstance(dispute.contractAddress).applyDisputeResult(_disputeId, true);
+                //IMarketplaceInstance(dispute.contractAddress).applyDisputeResult(_disputeId, true);
 
                 emit DisputeResolved(_disputeId, dispute.requester);
             }
@@ -243,7 +243,7 @@ contract ProtocolContract {
                 }
                 contractBalance += prize * positiveVotes;
 
-                IMarketplaceInstance(dispute.contractAddress).applyDisputeResult(_disputeId, false);
+                //IMarketplaceInstance(dispute.contractAddress).applyDisputeResult(_disputeId, false);
 
                 emit DisputeResolved(_disputeId, dispute.beneficiary);
             }
@@ -258,6 +258,21 @@ contract ProtocolContract {
         numberOfVotes = _newNumber;
     }
 
+
+    function executeDisputeResult(uint64 _disputeId) external view returns (bool) {
+        //require(IFactory(factory).isDeployedMarketplace(msg.sender), "Unauthorized");
+
+        Dispute memory dispute = disputes[_disputeId];
+        require(dispute.resolved, "Dispute not resolved yet");
+
+        if (dispute.votesFor > dispute.votesAgainst) {
+            // Requester wins
+            return true;
+        } else {
+            // Beneficiary wins
+            return false;
+        }
+    }
 
     /// Function that allows a judge to withdraw their balance of PYUSD tokens
     function judgeWithdraw() external {

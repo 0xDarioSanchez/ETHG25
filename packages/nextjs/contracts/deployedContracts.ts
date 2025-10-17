@@ -7,7 +7,7 @@ import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 const deployedContracts = {
   31337: {
     ProtocolContract: {
-      address: "0x5d1ce2a19aa885765abcef89b7590e213422a8b9",
+      address: "0x1816514ea77097c92f2ecf58c9d205637f85b5b7",
       abi: [
         {
           type: "constructor",
@@ -155,6 +155,25 @@ const deployedContracts = {
             },
             {
               name: "resolved",
+              type: "bool",
+              internalType: "bool",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "executeDisputeResult",
+          inputs: [
+            {
+              name: "_disputeId",
+              type: "uint64",
+              internalType: "uint64",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
               type: "bool",
               internalType: "bool",
             },
@@ -423,10 +442,10 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 283,
+      deployedOnBlock: 947,
     },
     FactoryContract: {
-      address: "0xd3497ab25da369b3ee5a239890348ea542b0f479",
+      address: "0x67c1ce31b1b29f6b636341f49703a979ec50bcf3",
       abi: [
         {
           type: "constructor",
@@ -565,10 +584,10 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 284,
+      deployedOnBlock: 948,
     },
     MockPYUSD: {
-      address: "0xc624801dd98bef87c0718ddb43ad3a566cc51ecc",
+      address: "0x983e00c438357d35d8fdc3e2be7c7a93b07ffc5c",
       abi: [
         {
           type: "constructor",
@@ -903,7 +922,7 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 282,
+      deployedOnBlock: 946,
     },
   },
 } as const;

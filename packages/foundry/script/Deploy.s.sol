@@ -55,13 +55,9 @@ contract DeployScript is ScaffoldETHDeploy {
 
         // Deploy marketplace
         address marketplaceAddress = factory.createMarketplace(2, address(pyusd));
-        MarketplaceInstance marketplace = MarketplaceInstance(payable(marketplaceAddress));
+        MarketplaceInstance marketplace = MarketplaceInstance(marketplaceAddress);
 
         vm.stopBroadcast();
-
-        console.log("Protocol factory:", protocol.factory());
-        console.log("Factory protocol:", factory.protocol());
-        console.log("Marketplace address:", marketplaceAddress);
 
         // ==========================================
         //             Payer registers
@@ -76,7 +72,7 @@ contract DeployScript is ScaffoldETHDeploy {
         // ==========================================
         vm.startBroadcast(beneficiaryKey);
         marketplace.registerUser(false, true, false);
-        marketplace.createDeal(payer, 500 * 10**6, 2 weeks);
+        marketplace.createDeal(payer, 700 * 10**6, 2 weeks);
         vm.stopBroadcast();
 
         // ==========================================
@@ -94,14 +90,14 @@ contract DeployScript is ScaffoldETHDeploy {
         // ==========================================
         vm.startBroadcast(payerKey);
         pyusd.approve(address(marketplace), type(uint256).max);
-        marketplace.acceptDeal(0);
+        marketplace.acceptDeal(1);
         vm.stopBroadcast();
 
         // ==========================================
         //          Payer requests a dispute
         // ==========================================
         vm.startBroadcast(payerKey);
-        marketplace.requestDispute(0, "The work was not delivered");
+        marketplace.requestDispute(1, "The work was not delivered");
         vm.stopBroadcast();
 
         // ==========================================
@@ -109,7 +105,7 @@ contract DeployScript is ScaffoldETHDeploy {
         // ==========================================
         for (uint i; i < judges.length; i++) {
             vm.startBroadcast(judgeKeys[i]);
-            protocol.registerToVote(0);
+            protocol.registerToVote(1);
             vm.stopBroadcast();
         }
 
@@ -118,10 +114,10 @@ contract DeployScript is ScaffoldETHDeploy {
         // ==========================================
         for (uint i; i < judges.length; i++) {
             vm.startBroadcast(judgeKeys[i]);
-            if (i < 4) {
-                protocol.vote(0, false);  // Vote for beneficiary
+            if (i < 3) {                    // 3 judges vote for beneficiary, 2 for requester
+                protocol.vote(1, false);    // Vote for beneficiary
             } else {
-                protocol.vote(0, true); // Vote for requester
+                protocol.vote(1, true);     // Vote for requester
             }
             vm.stopBroadcast();
         }
@@ -129,8 +125,15 @@ contract DeployScript is ScaffoldETHDeploy {
         // ==========================================
         //        Check if dispute is resolved
         // ==========================================
-        bool isResolved = protocol.checkIfDisputeIsResolved(0);
-        console.log("Dispute resolved:", isResolved);
+        bool isResolved = protocol.checkIfDisputeIsResolved(1);
+
+        // ==========================================
+        //       Execute dispute result
+        // ==========================================
+
+        vm.startBroadcast(beneficiaryKey);
+        marketplace.applyDisputeResult(1, 1);
+        vm.stopBroadcast();
 
         // ==========================================
         //           Judges withdraw fees
@@ -146,16 +149,29 @@ contract DeployScript is ScaffoldETHDeploy {
         vm.stopBroadcast();
 
         // ==========================================
+        //       Beneficiary withdraws funds
+        // ==========================================
+        vm.startBroadcast(beneficiaryKey);
+        marketplace.withdraw();
+        vm.stopBroadcast();
+
+        // ==========================================
         //         Check final balances
         // ==========================================
+        console.log("Protocol factory:", protocol.factory());
+        console.log("Factory protocol:", factory.protocol());
+        console.log("Marketplace address:", marketplaceAddress);
+        
+        console.log("Dispute resolved:", isResolved);
+
         console.log("Payer PYUSD balance:", pyusd.balanceOf(payer) / 1e6, "Initially 1000, paid 500 for deal and 50 for dispute");
         console.log("Beneficiary PYUSD balance:", pyusd.balanceOf(beneficiary) / 1e6);
-        //console.log("Marketplace PYUSD balance:", pyusd.balanceOf(marketplaceAddress) / 1e6);
+        console.log("Marketplace PYUSD balance:", pyusd.balanceOf(marketplaceAddress) / 1e6);
         console.log("Protocol PYUSD balance:", pyusd.balanceOf(address(protocol)) / 1e6);
-        console.log("Judge 1 PYUSD balance:", pyusd.balanceOf(judges[1]) / 1e6);
-        console.log("Judge 2 PYUSD balance:", pyusd.balanceOf(judges[2]) / 1e6);
-        console.log("Judge 3 PYUSD balance:", pyusd.balanceOf(judges[3]) / 1e6);
-        console.log("Judge 4 PYUSD balance:", pyusd.balanceOf(judges[4]) / 1e6);
-        console.log("Judge 5 PYUSD balance:", pyusd.balanceOf(judges[0]) / 1e6);
+        console.log("Judge 1 PYUSD balance:", pyusd.balanceOf(judges[0]) / 1e6);
+        console.log("Judge 2 PYUSD balance:", pyusd.balanceOf(judges[1]) / 1e6);
+        console.log("Judge 3 PYUSD balance:", pyusd.balanceOf(judges[2]) / 1e6);
+        console.log("Judge 4 PYUSD balance:", pyusd.balanceOf(judges[3]) / 1e6);
+        console.log("Judge 5 PYUSD balance:", pyusd.balanceOf(judges[4]) / 1e6);
     }
 }

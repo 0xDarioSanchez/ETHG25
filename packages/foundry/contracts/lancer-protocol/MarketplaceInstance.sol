@@ -31,7 +31,8 @@ contract MarketplaceInstance {
     uint256 public feePercent;                  //Fee percentage charged on each deal, in PYUSD
     IERC20 public pyusd;                        //Interface for PYUSD token
     IProtocolContract public protocol;          //Interface for Protocol contract
-    uint64 public dealIdCounter;                //Incremental ID for deals
+    uint64 public dealIdCounter = 1;            //Incremental ID for deals
+    uint8 constant PYUSD_DECIMALS = 6;          // Decimals of PYUSD token
 
     //Struct for storing user information
     //The reason to have 3 booleans is to allow users to be in different roles while using the same address
@@ -61,7 +62,7 @@ contract MarketplaceInstance {
     }
 
     struct Dispute {
-        uint32 dealId;              //ID to connect the dispute with the corresponding deal
+        uint64 dealId;              //ID to connect the dispute with the corresponding deal
         address requester;          //The one who opens the dispute. It will always be the payer
         string requesterProofs;     //Proofs provided by the requester
         string beneficiaryProofs;   //Proofs provided by the beneficiary
@@ -123,6 +124,7 @@ contract MarketplaceInstance {
     event DealFinalized(uint64 indexed dealId);
     event DealDurationUpdated(uint64 indexed dealId, uint16 newDuration);
     event DisputeCreated(uint64 indexed dealId, address indexed requester);
+    event DisputeResolved(uint64 indexed disputeId, address indexed winner);
 
     // ====================================
     //           CUSTOM ERRORs          
@@ -280,7 +282,7 @@ function createDeal(address _payer, uint256 _amount, uint64 _duration) external 
         uint256 fee = (deal.amount * feePercent) / 100;
 
         //Update beneficiary balance
-        users[deal.beneficiary].balance += (deal.amount - fee);
+        users[deal.beneficiary].balance += (deal.amount - fee) * 10**PYUSD_DECIMALS;
 
         delete deals[_dealId];
 
@@ -304,7 +306,7 @@ function createDeal(address _payer, uint256 _amount, uint64 _duration) external 
         uint256 fee = (deal.amount * feePercent) / 100;
 
         //Update beneficiary balance
-        users[deal.beneficiary].balance += (deal.amount - fee);
+        users[deal.beneficiary].balance += (deal.amount - fee) * 10**PYUSD_DECIMALS;
 
         delete deals[_dealId];
 
@@ -316,7 +318,7 @@ function createDeal(address _payer, uint256 _amount, uint64 _duration) external 
     function requestDispute(uint64 _dealId, string calldata _proof) external dealExists(_dealId) onlyPayer(_dealId) {
         // Intentionally hard-coded 50 PYUSD fee for dispute
         // In the future I want to create different levels of disputes, e.g. pay more for disputes with more judges
-        pyusd.safeTransferFrom(msg.sender, address(protocol), 50 * 10**6); 
+        pyusd.safeTransferFrom(msg.sender, address(protocol), 50 * 10**PYUSD_DECIMALS); 
         
         Deal storage deal = deals[_dealId];
         require(deal.accepted, "Deal not accepted");
@@ -332,7 +334,7 @@ function createDeal(address _payer, uint256 _amount, uint64 _duration) external 
 
 
     function addDisputeEvidenceForPayer(uint64 _disputeId, string calldata _proof) external disputeExists(_disputeId) {
-        Dispute storage dispute = disputes[_disputeId];
+        Dispute memory dispute = disputes[_disputeId];
         require(msg.sender == dispute.requester, "Only requester can add evidence");
         require(bytes(_proof).length > 0, "Proof cannot be empty");
 
@@ -342,7 +344,7 @@ function createDeal(address _payer, uint256 _amount, uint64 _duration) external 
 
 
     function addDisputeEvidenceForBeneficiary(uint64 _disputeId, string calldata _proof) external disputeExists(_disputeId) {
-        Dispute storage dispute = disputes[_disputeId];
+        Dispute memory dispute = disputes[_disputeId];
         Deal memory deal = deals[dispute.dealId];
         require(msg.sender == deal.beneficiary, "Only beneficiary can add evidence");
         require(bytes(_proof).length > 0, "Proof cannot be empty");
@@ -353,34 +355,52 @@ function createDeal(address _payer, uint256 _amount, uint64 _duration) external 
         protocol.updateDisputeForBeneficiary(_disputeId, msg.sender, _proof);
     }
 
-    // Called by Protocol contract once dispute is resolved
-    // Apply dispute result: adjust balances based on outcome (optional)
-    function applyDisputeResult(uint64 _disputeId, bool _result) external {
-        require(msg.sender == address(protocol), "Unauthorized");
-        
+    // Called by Payer or Beneficiary, only executable after the dispute is resolved
+    // Protocol contract calls `onDisputeResult` in this contract to apply the result
+    // If Payer wins, its balance is updated with the deal amount minus fee
+    // If Beneficiary wins, its balance is updated with the deal amount minus fee
+    // The deal and the dispute are deleted
+    function applyDisputeResult(uint64 _disputeId, uint64 _dealId) external {
         Dispute memory dispute = disputes[_disputeId];
-        Deal memory deal = deals[dispute.dealId];
-        require(deal.disputed, "Deal not disputed");
+        Deal memory deal = deals[_dealId];
+        require(msg.sender == dispute.requester || msg.sender == deal.beneficiary,
+            "Only involved parties can execute this");
 
-        if(_result){
-            // If the payer wins, update their balance minus fee
-            uint256 fee = (deal.amount * feePercent) / 100;
-            users[deal.payer].balance += (deal.amount - fee);
+        bool winner = protocol.executeDisputeResult(_disputeId);
+
+        uint256 fee = (deal.amount * feePercent) / 100; // Marketplace fee
+        uint256 payout = deal.amount - fee;             // Amount to winner
+
+        address winnerAddress;
+
+        if (winner) {
+            console.log("Payer wins dispute");
+            winnerAddress = deal.payer;
         } else {
-            // If the beneficiary wins, update their balance minus fee
-            uint256 fee = (deal.amount * feePercent) / 100;
-            users[deal.beneficiary].balance += (deal.amount - fee);
+            console.log("Beneficiary wins dispute");
+            winnerAddress = deal.beneficiary;
         }
+
+        users[winnerAddress].balance += payout;
+
+        // Marketplace keeps the fee (deal.amount - payout)
+
+        delete deals[dispute.dealId];
+        delete disputes[_disputeId];
+
+        emit DisputeResolved(_disputeId, winner ? deal.payer : deal.beneficiary);
     }
 
+    function withdraw() external onlyUser {
+        uint256 balance = users[msg.sender].balance;
+        require(balance > 0, "Insufficient balance");
 
-    function withdraw(uint256 _amount) external onlyUser {
-        require(users[msg.sender].balance >= _amount, "Insufficient balance");
+        // Reset balance before transfer
+        users[msg.sender].balance = 0;
 
-        users[msg.sender].balance -= _amount;
-        pyusd.safeTransfer(msg.sender, _amount);
+        pyusd.safeTransfer(msg.sender, balance);
 
-        emit UserWithdrew(msg.sender, _amount);
+        emit UserWithdrew(msg.sender, balance);
     }
 
 
