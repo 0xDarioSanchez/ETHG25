@@ -55,7 +55,7 @@ contract MarketplaceInstance {
         address beneficiary;    //The one who receives the payment, it can be a freelancer or a seller
         uint256 amount;         //Amount in PYUSD
         uint256 startedAt;      //Timestamp when the deal was accepted
-        uint16 duration;        //Duration in days for the deal
+        uint64 duration;        //Duration in days for the deal
         bool accepted;          //True if the deal is open, false if it is closed
         bool disputed;          //True if there is an open dispute for this deal
     }
@@ -188,7 +188,7 @@ contract MarketplaceInstance {
     //Allow users registered as beneficiaries to create deals
     //It must be accepted by the payer to be effective
     //Only `amount` can be updated after creation, but not if already accepted
-function createDeal(address _payer, uint256 _amount, uint16 _duration) external {
+function createDeal(address _payer, uint256 _amount, uint64 _duration) external {
     require(_amount > 0, "Amount must be greater than zero");
     require(_payer != address(0), "Invalid payer address");
     require(users[msg.sender].isBeneficiary, "User not registered as beneficiary");
@@ -325,7 +325,7 @@ function createDeal(address _payer, uint256 _amount, uint16 _duration) external 
         deal.disputed = true;
 
         // Call Protocol contract
-        protocol.createDispute(msg.sender, _dealId, _proof);
+        protocol.createDispute(msg.sender, _proof);
 
         emit DisputeCreated(_dealId, msg.sender);
     }    
@@ -428,6 +428,6 @@ function createDeal(address _payer, uint256 _amount, uint16 _duration) external 
     //TODO function to give the locked funds to a lending protocol
     
     //Function that allows the contract to receive ETH
-    receive() external payable { }
+    //receive() external payable { }
 
 }

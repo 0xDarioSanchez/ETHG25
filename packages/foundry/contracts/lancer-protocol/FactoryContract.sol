@@ -31,7 +31,7 @@ contract FactoryContract is IFactory {
     //          STATE VARIABLES          
     // ====================================
 
-    address private protocol;
+    address public protocol;
     address public owner;
 
     mapping(address => bool) public isMarketplace;

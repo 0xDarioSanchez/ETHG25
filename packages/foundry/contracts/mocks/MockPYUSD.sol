@@ -10,7 +10,7 @@ contract MockPYUSD is ERC20 {
 
     constructor() ERC20("PayPal USD", "PYUSD") {
         //It mints a initial supply of 1 million PYUSD to the deployer
-        _mint(msg.sender, 1_000_000 * 10 ** PYUSD_DECIMALS);
+        _mint(msg.sender, 1_000_000_000_000_000_000 * 10 ** PYUSD_DECIMALS);
     }
 
     //In case of needing to mint more PYUSD for testing

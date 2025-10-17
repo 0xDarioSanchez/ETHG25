@@ -38,7 +38,7 @@ contract ProtocolContract {
     uint8 public numberOfVotes = 5;             // Number of votes required to resolve a dispute
 
     uint8 constant PYUSD_DECIMALS = 6;          // Decimals of PYUSD token
-    uint256 public disputePrice = 10 * 10**PYUSD_DECIMALS; // Price to open a dispute, 10 PYUSD
+    uint256 public disputePrice = 50 * 10**PYUSD_DECIMALS; // Price to open a dispute, 50 PYUSD
 
     struct Judge {
         address judgeAddress;       // Address of the corresponding judge
@@ -213,7 +213,7 @@ contract ProtocolContract {
             uint8 positiveVotes = dispute.votesFor;
             uint8 negativeVotes = dispute.votesAgainst;
 
-            uint256 prize = disputePrice * PYUSD_DECIMALS / numberOfVotes;
+            uint256 prize = disputePrice / numberOfVotes;
 
             // If the requester wins
             if (positiveVotes > negativeVotes) {
@@ -289,6 +289,9 @@ contract ProtocolContract {
     //        PURE & VIEW FUNCTIONS          
     // ====================================
 
+    function checkIfDisputeIsResolved(uint64 _disputeId) external view returns (bool) {
+        return disputes[_disputeId].resolved;
+    }
 
     function _checkIfAbleToVote(Dispute memory dispute, address judge) internal pure returns (bool) {
         for (uint256 i = 0; i < dispute.ableToVote.length; i++) {
