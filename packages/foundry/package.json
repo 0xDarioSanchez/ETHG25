@@ -20,6 +20,9 @@
     "verify": "make verify RPC_URL=${1:-localhost}"
   },
   "dependencies": {
+    "@avail-project/nexus": "^1.1.0",
+    "@avail-project/nexus-core": "^0.0.1",
+    "@avail-project/nexus-widgets": "^0.0.5",
     "dotenv": "~16.3.1",
     "envfile": "~6.18.0",
     "ethers": "~5.7.1",

@@ -29,6 +29,7 @@ contract MarketplaceInstance {
 
     address public immutable owner;             //Owner of the contract, the one who deployed it
     uint256 public feePercent;                  //Fee percentage charged on each deal, in PYUSD
+    address public availExecutor;               // Avail executor address
     IERC20 public pyusd;                        //Interface for PYUSD token
     IProtocolContract public protocol;          //Interface for Protocol contract
     uint64 public dealIdCounter = 1;            //Incremental ID for deals
@@ -106,6 +107,11 @@ contract MarketplaceInstance {
 
     modifier disputeExists(uint64 disputeId) {
         require(disputes[disputeId].dealId > 0, "Dispute does not exist");
+        _;
+    }
+
+    modifier onlyAvail() {
+        require(msg.sender == availExecutor, "Only Avail executor can call");
         _;
     }
 
@@ -240,24 +246,17 @@ function createDeal(address _payer, uint256 _amount, uint64 _duration) external 
     }
 
 
-    //Function to accept a deal, transferring the funds to the contract
-    //`Payer` transfer tokens to the contract but its balance is not updated until, that only happens if `Payer` request for a dispute and win it
-    function acceptDeal(uint32 _dealId) external dealExists(_dealId) {
-        Deal storage deal = deals[_dealId];
-        require(msg.sender == deals[_dealId].payer, "Only payer can perform this action");
-
-        deal.accepted = true;
-        deal.startedAt = block.timestamp;
-
-        pyusd.safeTransferFrom(msg.sender, address(this), deal.amount);
-
-        emit DealAccepted(_dealId);
+    //TODO function to be called by Avail executor to accept the deal on behalf of the Payer
+    function acceptDealFromAvail(uint64 _dealId) external dealExists(_dealId) onlyAvail {
+        acceptDeal(_dealId);
     }
 
+
     //If `Payer` does not agree with the deal, it can reject it
-    //The deal is deleted
+    //The deal is deleted for storage optimization
+    //Ideally it should be a gasless transaction, payed by the contract itself
     function rejectDeal(uint64 _dealId) external dealExists(_dealId) {
-        Deal storage deal = deals[_dealId];
+        Deal memory deal = deals[_dealId];
 
         require(msg.sender == deal.payer, "Only payer can reject the deal");
         require(!deal.accepted, "Deal already accepted");
@@ -408,6 +407,22 @@ function createDeal(address _payer, uint256 _amount, uint64 _duration) external 
     // ====================================
     //          PUBLIC FUNCTIONS          
     // ====================================
+
+
+    //Function to accept a deal, transferring the funds to the contract
+    //`Payer` transfer tokens to the contract but its balance is not updated until, that only happens if `Payer` request for a dispute and win it
+    function acceptDeal(uint64 _dealId) public dealExists(_dealId) {
+        Deal storage deal = deals[_dealId];
+        require(msg.sender == deals[_dealId].payer, "Only payer can perform this action");
+
+        deal.accepted = true;
+        deal.startedAt = block.timestamp;
+
+        pyusd.safeTransferFrom(msg.sender, address(this), deal.amount);
+
+        emit DealAccepted(_dealId);
+    }
+
 
     // ====================================
     //         INTERNAL FUNCTIONS          
