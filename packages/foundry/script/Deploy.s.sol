@@ -114,7 +114,7 @@ contract DeployScript is ScaffoldETHDeploy {
         // ==========================================
         for (uint i; i < judges.length; i++) {
             vm.startBroadcast(judgeKeys[i]);
-            if (i < 3) {                    // 3 judges vote for beneficiary, 2 for requester
+            if (i < 4) {                    // 3 judges vote for beneficiary, 2 for requester
                 protocol.vote(1, false);    // Vote for beneficiary
             } else {
                 protocol.vote(1, true);     // Vote for requester
@@ -147,6 +147,9 @@ contract DeployScript is ScaffoldETHDeploy {
         vm.startBroadcast(judgeKeys[2]);
         protocol.judgeWithdraw();
         vm.stopBroadcast();
+        vm.startBroadcast(judgeKeys[3]);
+        protocol.judgeWithdraw();
+        vm.stopBroadcast();
 
         // ==========================================
         //       Beneficiary withdraws funds
@@ -164,7 +167,7 @@ contract DeployScript is ScaffoldETHDeploy {
         
         console.log("Dispute resolved:", isResolved);
 
-        console.log("Payer PYUSD balance:", pyusd.balanceOf(payer) / 1e6, "Initially 1000, paid 500 for deal and 50 for dispute");
+        console.log("Payer PYUSD balance:", pyusd.balanceOf(payer) / 1e6, "Initially 1000, paid 700 for deal and 50 for dispute");
         console.log("Beneficiary PYUSD balance:", pyusd.balanceOf(beneficiary) / 1e6);
         console.log("Marketplace PYUSD balance:", pyusd.balanceOf(marketplaceAddress) / 1e6);
         console.log("Protocol PYUSD balance:", pyusd.balanceOf(address(protocol)) / 1e6);
