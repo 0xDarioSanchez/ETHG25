@@ -5,7 +5,7 @@
 
 import { useAccount } from "wagmi";
 import { Button } from "./ui/button";
-import { useNexus } from "@/providers/NexusProvider";
+import { useNexus } from "~~/providers/NexusProvider";
 import { ClockFading } from "lucide-react";
 import { useState } from "react";
 

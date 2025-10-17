@@ -16,10 +16,10 @@ import { Label } from "./ui/label";
 import { useState } from "react";
 import ChainSelect from "./blocks/chain-select";
 import TokenSelect from "./blocks/token-select";
-import { useNexus } from "@/providers/NexusProvider";
+import { useNexus } from "~~/providers/NexusProvider";
 import IntentModal from "./blocks/intent-modal";
 import { ArrowBigRight, CircleAlertIcon } from "lucide-react";
-import useListenTransaction from "@/hooks/useListenTransactions";
+import useListenTransaction from "~~/hooks/useListenTransactions";
 
 const NexusBridge = () => {
   const [inputs, setInputs] = useState<{

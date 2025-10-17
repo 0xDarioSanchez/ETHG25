@@ -64,9 +64,13 @@
   },
   "dependencies": {
     "@avail-project/nexus-core": "^0.0.1",
+    "@radix-ui/react-accordion": "^1.2.12",
+    "@radix-ui/react-separator": "^1.1.7",
+    "@radix-ui/react-tabs": "^1.1.13",
     "async-function": "^1.0.0",
     "async-generator-function": "^1.0.0",
     "connectkit": "^1.9.1",
-    "generator-function": "^2.0.1"
+    "generator-function": "^2.0.1",
+    "lucide-react": "^0.546.0"
   }
 }
