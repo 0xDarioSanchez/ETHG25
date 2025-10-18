@@ -46,7 +46,37 @@ export function useDeployedContractInfo<TContractName extends ContractName>(
   }, [configOrName]);
   const { contractName, chainId } = finalConfig;
   const selectedNetwork = useSelectedNetwork(chainId);
-  const deployedContract = contracts?.[selectedNetwork.id]?.[contractName as ContractName] as Contract<TContractName>;
+  // also consider dynamic contracts registered at runtime in sessionStorage
+  const [dynamicContracts, setDynamicContracts] = useState<Partial<Record<string, Record<string, any>>>>(() => {
+    try {
+      if (typeof window === "undefined") return {};
+      const raw = sessionStorage.getItem("scaffoldEth2.dynamicContracts");
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    const handler = () => {
+      try {
+        const raw = sessionStorage.getItem("scaffoldEth2.dynamicContracts");
+        setDynamicContracts(raw ? JSON.parse(raw) : {});
+      } catch (e) {
+        setDynamicContracts({});
+      }
+    };
+    window.addEventListener("scaffoldEth2:dynamicContractsUpdated", handler);
+    window.addEventListener("storage", handler as any);
+    return () => {
+      window.removeEventListener("scaffoldEth2:dynamicContractsUpdated", handler);
+      window.removeEventListener("storage", handler as any);
+    };
+  }, []);
+
+  const dynamicForChain = dynamicContracts?.[String(selectedNetwork.id)] || {};
+  const deployedContract = (dynamicForChain[contractName as string] as Contract<TContractName>) ??
+    (contracts?.[selectedNetwork.id]?.[contractName as ContractName] as Contract<TContractName>);
   const [status, setStatus] = useState<ContractCodeStatus>(ContractCodeStatus.LOADING);
   const publicClient = usePublicClient({ chainId: selectedNetwork.id });
 

@@ -14,6 +14,7 @@ import {
   transformAbiFunction,
 } from "~~/app/debug/_components/contract";
 import MarketplaceInstanceJson from "~~/../foundry/out/MarketplaceInstance.sol/MarketplaceInstance.json";
+import FactoryContractJson from "~~/../foundry/out/FactoryContract.sol/FactoryContract.json";
 import { IntegerInput } from "~~/components/scaffold-eth";
 import { useTransactor } from "~~/hooks/scaffold-eth";
 import { useTargetNetwork } from "~~/hooks/scaffold-eth/useTargetNetwork";
@@ -111,18 +112,61 @@ export const WriteOnlyFunctionForm = ({
           }
 
           // If we didn't get decoded args, try to detect the MarketplaceDeployed by name and fall back to topics
-          if (!decoded && eventAbis.length > 0) {
-            const marketplaceEvent = eventAbis.find((e: any) => e.name === "MarketplaceDeployed");
-            if (marketplaceEvent) {
-              const selector = getEventSelector(marketplaceEvent as any);
-              if (log.topics && log.topics[0] && selector && log.topics[0].toLowerCase() === selector.toLowerCase()) {
-                // marketplace address is indexed at topics[1]
-                const topicAddr = log.topics[1];
-                if (topicAddr && typeof topicAddr === "string") {
-                  const addr = `0x${topicAddr.slice(-40)}`;
-                  decoded = { eventName: "MarketplaceDeployed", args: { marketplace: addr } };
-                  matchedEventAbi = marketplaceEvent;
+          if (!decoded) {
+            // First try the ABI that was passed to this form (commonly the factory ABI)
+            if (eventAbis.length > 0) {
+              const marketplaceEvent = eventAbis.find((e: any) => e.name === "MarketplaceDeployed");
+              if (marketplaceEvent) {
+                const selector = getEventSelector(marketplaceEvent as any);
+                console.log("Marketplace fallback: checking selector from current ABI", { selector, topic0: log.topics?.[0] });
+                if (log.topics && log.topics[0] && selector && log.topics[0].toLowerCase() === selector.toLowerCase()) {
+                  // marketplace address is indexed at topics[1]
+                  const topicAddr = log.topics[1];
+                  if (topicAddr && typeof topicAddr === "string") {
+                    const addr = `0x${topicAddr.slice(-40)}`;
+                    decoded = { eventName: "MarketplaceDeployed", args: { marketplace: addr } };
+                    matchedEventAbi = marketplaceEvent;
+                  }
                 }
+              }
+            }
+
+            // If still not found, try the known FactoryContract ABI as a last resort. This helps when the
+            // current form ABI doesn't include the factory event (e.g. proxied contracts or different ABI shape).
+            if (!decoded) {
+              try {
+                const factoryEvent = (FactoryContractJson.abi || []).find((e: any) => e.type === "event" && e.name === "MarketplaceDeployed");
+                if (factoryEvent) {
+                  const factorySelector = getEventSelector(factoryEvent as any);
+                  console.log("Marketplace fallback: checking selector from FactoryContract ABI", { factorySelector, topic0: log.topics?.[0] });
+                  if (log.topics && log.topics[0] && factorySelector && log.topics[0].toLowerCase() === factorySelector.toLowerCase()) {
+                    const topicAddr = log.topics[1];
+                    if (topicAddr && typeof topicAddr === "string") {
+                      const addr = `0x${topicAddr.slice(-40)}`;
+                      decoded = { eventName: "MarketplaceDeployed", args: { marketplace: addr } };
+                      matchedEventAbi = factoryEvent;
+                    }
+                  }
+                }
+              } catch (e) {
+                console.log("Marketplace fallback: factory ABI check failed", e);
+              }
+            }
+
+            // Final catch-all: compute selector from canonical signature string
+            if (!decoded) {
+              try {
+                const canonical = getEventSelector({ name: "MarketplaceDeployed", type: "event", inputs: [ { type: "address", indexed: true }, { type: "address", indexed: true } ] } as any);
+                console.log("Marketplace fallback: canonical selector", { canonical, topic0: log.topics?.[0] });
+                if (log.topics && log.topics[0] && canonical && log.topics[0].toLowerCase() === canonical.toLowerCase()) {
+                  const topicAddr = log.topics[1];
+                  if (topicAddr && typeof topicAddr === "string") {
+                    const addr = `0x${topicAddr.slice(-40)}`;
+                    decoded = { eventName: "MarketplaceDeployed", args: { marketplace: addr } };
+                  }
+                }
+              } catch (e) {
+                console.log("Marketplace fallback: canonical selector check failed", e);
               }
             }
           }
@@ -148,7 +192,7 @@ export const WriteOnlyFunctionForm = ({
                 deployedOnBlock: txResult.blockNumber,
               };
               sessionStorage.setItem(DYNAMIC_KEY, JSON.stringify(parsed));
-              console.debug("Registered dynamic contract", { generatedName, marketplaceAddress, chainId });
+              console.log("Registered dynamic contract", { generatedName, marketplaceAddress, chainId });
               window.dispatchEvent(new Event("scaffoldEth2:dynamicContractsUpdated"));
             }
           }
