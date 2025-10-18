@@ -8,6 +8,8 @@ pragma solidity 0.8.30;
 import "forge-std/console.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
 
 import "./interfaces/IPYUSD.sol";
 import "./interfaces/IProtocolContract.sol";
@@ -21,19 +23,19 @@ import "./interfaces/IProtocolContract.sol";
  * It allows the Owner to withdraw the PYUSD earned throught lending
  * @author 0xDarioSanchez
  */
-contract MarketplaceInstance {
+contract MarketplaceInstance is ReentrancyGuard{
     using SafeERC20 for IERC20;
     // ====================================
     //          STATE VARIABLES          
     // ====================================
 
     address public immutable owner;             //Owner of the contract, the one who deployed it
-    uint256 public feePercent;                  //Fee percentage charged on each deal, in PYUSD
     address public availExecutor;               // Avail executor address
     IERC20 public pyusd;                        //Interface for PYUSD token
     IProtocolContract public protocol;          //Interface for Protocol contract
     uint64 public dealIdCounter = 1;            //Incremental ID for deals
     uint8 constant PYUSD_DECIMALS = 6;          // Decimals of PYUSD token
+    uint8 public feePercent;                  //Fee percentage charged on each deal, in PYUSD
 
     //Struct for storing user information
     //The reason to have 3 booleans is to allow users to be in different roles while using the same address
@@ -142,7 +144,7 @@ contract MarketplaceInstance {
 
     constructor(
         address _owner, 
-        uint256 _feePercent, 
+        uint8 _feePercent, 
         address _token,
         address _protocolAddress 
     ) {
@@ -152,16 +154,38 @@ contract MarketplaceInstance {
         protocol = IProtocolContract(_protocolAddress);
     }
 
+
+    // ====================================
+    //        ONLY-OWNER FUNCTIONS          
+    // ====================================
+
+
+    // Function to update the fee percentage
+    // Only callable by the owner
+    function setFeePercent(uint8 _newFeePercent) external onlyOwner {
+        feePercent = _newFeePercent;
+    }
+
+
+    // Function to update the Avail executor address
+    // Only callable by the owner
+    function setAvailExecutor(address _newExecutor) external onlyOwner {
+        availExecutor = _newExecutor;
+    }
+
+
     // ====================================
     //         EXTERNAL FUNCTIONS          
     // ====================================
 
     function registerUser(bool _isPayer, bool _isBeneficiary, bool _isJudge) external {
-        //Check if the user is already registered
+
+        // Check if the user is already registered
         require(users[msg.sender].userAddress == address(0), "User already registered");
+        // User must have at least one role
         require(_isPayer || _isBeneficiary || _isJudge, "At least one role must be true");
 
-        //Register the user
+        // Register the user
         users[msg.sender] = User({
             userAddress: msg.sender,
             balance: 0,
@@ -179,6 +203,7 @@ contract MarketplaceInstance {
     function addRole(bool _isPayer, bool _isBeneficiary, bool _isJudge) external onlyUser {
         require(_isPayer || _isBeneficiary || _isJudge, "At least one role must be true");
 
+        // Set the roles
         if(_isPayer){
             users[msg.sender].isPayer = true;
         }
@@ -246,9 +271,55 @@ function createDeal(address _payer, uint256 _amount, uint64 _duration) external 
     }
 
 
-    //TODO function to be called by Avail executor to accept the deal on behalf of the Payer
-    function acceptDealFromAvail(uint64 _dealId) external dealExists(_dealId) onlyAvail {
-        acceptDeal(_dealId);
+    //Function to accept a deal, transferring the funds to the contract
+    //`Payer` transfer tokens to the contract but its balance is not updated until, that only happens if `Payer` request for a dispute and win it
+    function acceptDeal(uint64 _dealId) public dealExists(_dealId) {
+        Deal storage deal = deals[_dealId];
+        require(msg.sender == deals[_dealId].payer, "Only payer can perform this action");
+        require(!deal.accepted, "Deal already accepted");
+
+        deal.accepted = true;
+        deal.startedAt = block.timestamp;
+
+        pyusd.safeTransferFrom(msg.sender, address(this), deal.amount);
+
+        emit DealAccepted(_dealId);
+    }
+
+
+    //TODO 
+    // Called after Avail bridges tokens and executes the call on this contract
+    function acceptDealFromAvail(
+        uint64 _dealId,
+        address _payer,
+        address _token,
+        uint256 _amount
+        //,bytes calldata _extra
+    )
+        external
+        onlyAvail
+        nonReentrant
+        dealExists(_dealId)
+    {
+        Deal storage deal = deals[_dealId];
+        require(!deal.accepted, "Already accepted");
+        require(_amount == deal.amount, "Amount mismatch");
+        require(_payer == deal.payer, "Payer mismatch");
+
+        // If token is PYUSD, accept directly
+        if (_token == address(pyusd)) {
+            // Avail transfer bridged tokens to this contract
+            //TODO how ensure the contract balance increased accordingly?
+            // rely on Avail to deliver tokens to this contract prior to call.
+            deal.accepted = true;
+            deal.startedAt = block.timestamp;
+            emit DealAccepted(_dealId);
+            //emit DealAcceptedFromAvail(_dealId, _payer, _token, _amount, _extra);
+            return;
+        }
+
+        // If token is not PYUSD, revert
+        revert("Unsupported token");
     }
 
 
@@ -405,26 +476,6 @@ function createDeal(address _payer, uint256 _amount, uint64 _duration) external 
 
 
     // ====================================
-    //          PUBLIC FUNCTIONS          
-    // ====================================
-
-
-    //Function to accept a deal, transferring the funds to the contract
-    //`Payer` transfer tokens to the contract but its balance is not updated until, that only happens if `Payer` request for a dispute and win it
-    function acceptDeal(uint64 _dealId) public dealExists(_dealId) {
-        Deal storage deal = deals[_dealId];
-        require(msg.sender == deals[_dealId].payer, "Only payer can perform this action");
-
-        deal.accepted = true;
-        deal.startedAt = block.timestamp;
-
-        pyusd.safeTransferFrom(msg.sender, address(this), deal.amount);
-
-        emit DealAccepted(_dealId);
-    }
-
-
-    // ====================================
     //         INTERNAL FUNCTIONS          
     // ====================================
 
@@ -453,7 +504,6 @@ function createDeal(address _payer, uint256 _amount, uint64 _duration) external 
     function getContractAddress() external view returns (address) {
         return address(this);
     }
-
 
 
     // ====================================
