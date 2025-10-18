@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { InheritanceTooltip } from "./InheritanceTooltip";
 import { Abi, AbiFunction } from "abitype";
-import { Address, TransactionReceipt } from "viem";
+import { Address, TransactionReceipt, decodeEventLog, getEventSelector } from "viem";
 import { useAccount, useConfig, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import {
   ContractInput,
@@ -13,6 +13,7 @@ import {
   getParsedContractFunctionArgs,
   transformAbiFunction,
 } from "~~/app/debug/_components/contract";
+import MarketplaceInstanceJson from "~~/../foundry/out/MarketplaceInstance.sol/MarketplaceInstance.json";
 import { IntegerInput } from "~~/components/scaffold-eth";
 import { useTransactor } from "~~/hooks/scaffold-eth";
 import { useTargetNetwork } from "~~/hooks/scaffold-eth/useTargetNetwork";
@@ -77,6 +78,88 @@ export const WriteOnlyFunctionForm = ({
   useEffect(() => {
     setDisplayedTxResult(txResult);
   }, [txResult]);
+
+  // When a txReceipt arrives, inspect logs to see if a MarketplaceInstance was deployed
+  useEffect(() => {
+    if (!txResult) return;
+
+    try {
+      const factoryAbi = abi as any[];
+
+      for (const log of (txResult.logs || [])) {
+        try {
+          // debug: log the raw topics/data so we can inspect what's on the receipt
+          console.debug("tx log topics/data", { topics: log.topics, data: log.data });
+          // Try decoding using each event entry individually to be more robust
+          const eventAbis = (factoryAbi || []).filter((e: any) => e.type === "event");
+          let decoded: any = null;
+          let matchedEventAbi: any = null;
+          for (const eventAbi of eventAbis) {
+            try {
+              // compute selector for quick match
+              const selector = getEventSelector(eventAbi as any);
+              if (log.topics && log.topics[0] && selector && log.topics[0].toLowerCase() !== selector.toLowerCase()) {
+                // not this event
+                continue;
+              }
+              decoded = decodeEventLog({ abi: eventAbi as any, data: log.data, topics: log.topics });
+              matchedEventAbi = eventAbi;
+              if (decoded?.eventName) break;
+            } catch (e) {
+              // ignore decode errors per event
+            }
+          }
+
+          // If we didn't get decoded args, try to detect the MarketplaceDeployed by name and fall back to topics
+          if (!decoded && eventAbis.length > 0) {
+            const marketplaceEvent = eventAbis.find((e: any) => e.name === "MarketplaceDeployed");
+            if (marketplaceEvent) {
+              const selector = getEventSelector(marketplaceEvent as any);
+              if (log.topics && log.topics[0] && selector && log.topics[0].toLowerCase() === selector.toLowerCase()) {
+                // marketplace address is indexed at topics[1]
+                const topicAddr = log.topics[1];
+                if (topicAddr && typeof topicAddr === "string") {
+                  const addr = `0x${topicAddr.slice(-40)}`;
+                  decoded = { eventName: "MarketplaceDeployed", args: { marketplace: addr } };
+                  matchedEventAbi = marketplaceEvent;
+                }
+              }
+            }
+          }
+
+          if (decoded && decoded.eventName === "MarketplaceDeployed") {
+            const marketplaceAddress = decoded.args?.marketplace ?? (decoded.args && decoded.args[0]) ?? null;
+            if (marketplaceAddress) {
+              const DYNAMIC_KEY = "scaffoldEth2.dynamicContracts";
+              // normalize chain id to decimal string (handle hex like 0x7a69)
+              const rawChainId = (txResult as any).chainId ?? (window as any).ethereum?.chainId ?? targetNetwork?.id ?? 31337;
+              const normalizedChainId = typeof rawChainId === "string" && rawChainId.startsWith("0x")
+                ? String(parseInt(rawChainId, 16))
+                : String(Number(rawChainId) || targetNetwork?.id || 31337);
+              const chainId = normalizedChainId;
+              const currentRaw = sessionStorage.getItem(DYNAMIC_KEY);
+              const parsed = currentRaw ? JSON.parse(currentRaw) : {};
+              parsed[chainId] = parsed[chainId] || {};
+
+              const generatedName = `MarketplaceInstance_${String(marketplaceAddress).slice(2, 8)}`;
+              parsed[chainId][generatedName] = {
+                address: marketplaceAddress,
+                abi: MarketplaceInstanceJson.abi,
+                deployedOnBlock: txResult.blockNumber,
+              };
+              sessionStorage.setItem(DYNAMIC_KEY, JSON.stringify(parsed));
+              console.debug("Registered dynamic contract", { generatedName, marketplaceAddress, chainId });
+              window.dispatchEvent(new Event("scaffoldEth2:dynamicContractsUpdated"));
+            }
+          }
+        } catch (e) {
+          // ignore per-log decode errors
+        }
+      }
+    } catch (e) {
+      console.error("Failed to process tx logs for dynamic contract registration", e);
+    }
+  }, [txResult, abi]);
 
   const transformedFunction = useMemo(() => transformAbiFunction(abiFunction), [abiFunction]);
   const inputs = transformedFunction.inputs.map((input, inputIndex) => {

@@ -41,6 +41,14 @@ const nextConfig: NextConfig = {
     "async-generator-function": require.resolve("async-generator-function"),
   };
     config.externals.push("pino-pretty", "lokijs", "encoding");
+    // Ensure viem/siwe import used by some transitive packages resolves to the
+    // standalone `siwe` package which exports the same helpers. This avoids
+    // runtime "package path ... is not exported" errors when viem doesn't
+    // re-export ./siwe in its exports map.
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      'viem/siwe': require.resolve('siwe'),
+    };
     return config;
   },
 };

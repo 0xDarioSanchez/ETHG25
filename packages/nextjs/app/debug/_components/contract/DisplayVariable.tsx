@@ -45,6 +45,27 @@ export const DisplayVariable = ({
 
   const { showAnimation } = useAnimationConfig(result);
 
+  // Format numeric function names that represent token amounts with 6 decimals (e.g. "50000000" -> "50 PYUSD")
+  const formatAbiName = (name: string) => {
+    if (!/^[0-9]+$/.test(name)) return name;
+
+    // Consider the last 6 digits as decimals (token has 6 decimals)
+    const decimals = 6;
+    const raw = name.replace(/^0+/, "") || "0";
+
+    // If the value is smaller than 10^6, show fractional value
+    const padded = raw.padStart(decimals + 1, "0");
+    const intPart = padded.slice(0, -decimals);
+    let fracPart = padded.slice(-decimals);
+
+    fracPart = fracPart.replace(/0+$/, "");
+
+    const integerNormalized = String(BigInt(intPart || "0"));
+
+    const formatted = fracPart ? `${integerNormalized}.${fracPart}` : integerNormalized;
+    return `${formatted} PYUSD`;
+  };
+
   useEffect(() => {
     refetch();
   }, [refetch, refreshDisplayVariables]);
@@ -59,7 +80,7 @@ export const DisplayVariable = ({
   return (
     <div className="space-y-1 pb-2">
       <div className="flex items-center">
-        <h3 className="font-medium text-lg mb-0 break-all">{abiFunction.name}</h3>
+  <h3 className="font-medium text-lg mb-0 break-all">{formatAbiName(String(abiFunction.name))}</h3>
         <button className="btn btn-ghost btn-xs" onClick={async () => await refetch()}>
           {isFetching ? (
             <span className="loading loading-spinner loading-xs"></span>
@@ -76,7 +97,39 @@ export const DisplayVariable = ({
               showAnimation ? "bg-warning rounded-xs animate-pulse-fast" : ""
             }`}
           >
-            {displayTxResult(result)}
+            {(() => {
+              // Format primitive numeric results for token-like functions (e.g., disputePrice)
+              const fnName = String(abiFunction.name).toLowerCase();
+
+              const shouldFormatToken = /price|amount|fee/.test(fnName);
+
+              const formatTokenValue = (val: any) => {
+                if (val == null) return val;
+                // accept bigint, number, or numeric string
+                let numericStr: string | null = null;
+                if (typeof val === "bigint") numericStr = val.toString();
+                else if (typeof val === "number" && Number.isFinite(val)) numericStr = String(Math.trunc(val));
+                else if (typeof val === "string" && /^[0-9]+$/.test(val)) numericStr = val;
+                if (!numericStr) return val;
+
+                try {
+                  const decimals = 6;
+                  const denom = BigInt(10 ** decimals);
+                  const big = BigInt(numericStr);
+                  const intPart = big / denom;
+                  const rem = big % denom;
+                  let frac = rem.toString().padStart(decimals, "0");
+                  frac = frac.replace(/0+$/, "");
+                  const formatted = frac ? `${intPart.toString()}.${frac}` : intPart.toString();
+                  return `${formatted} PYUSD`;
+                } catch (e) {
+                  return val;
+                }
+              };
+
+              const displayValue = shouldFormatToken ? formatTokenValue(result) : result;
+              return displayTxResult(displayValue);
+            })()}
           </div>
         </div>
       </div>

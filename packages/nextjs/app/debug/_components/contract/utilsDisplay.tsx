@@ -36,6 +36,8 @@ export const displayTxResult = (
     if (isHex(displayContent)) {
       return displayContent; // don't add quotes
     }
+    // plain strings (labels, formatted values, etc.) should be returned as-is
+    return displayContent;
   }
 
   if (Array.isArray(displayContent)) {

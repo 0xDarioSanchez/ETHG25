@@ -26,10 +26,11 @@ const Home: NextPage = () => {
           <section className="bg-gradient-to-r from-primary/10 to-secondary/5 rounded-2xl p-8 md:p-12 shadow-md">
             <div className="md:flex md:items-center md:justify-between">
               <div className="md:flex-1">
-                <h2 className="text-2xl md:text-3xl font-bold mb-3">Build decentralized freelance marketplaces — instantly</h2>
-                <p className="text-base text-muted mb-4 max-w-2xl">
-                  Lancer Protocol is a lightweight, composable system for deploying on-chain marketplaces with integrated
-                  dispute resolution. Deploy a marketplace instance and start accepting deals in minutes.
+                <h2 className="text-2xl md:text-3xl font-bold mb-3">Build your own decentralized marketplaces</h2>
+                <p className="text-base text-muted mb-4 max-w-2xl pl-6">
+                  Lancer Protocol is a decentralized freelance marketplace built on Ethereum<br />
+                  It allows you to deploy your own on-chain marketplaces with a few clicks<br />
+                  While your market access a global system of decentralized dispute resolution
                 </p>
 
                 <div className="flex flex-wrap gap-3">

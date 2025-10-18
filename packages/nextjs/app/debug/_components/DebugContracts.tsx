@@ -12,10 +12,13 @@ const selectedContractStorageKey = "scaffoldEth2.selectedContract";
 export function DebugContracts() {
   const contractsData = useAllContracts();
   const contractNames = useMemo(
-    () =>
-      Object.keys(contractsData).sort((a, b) => {
-        return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
-      }) as ContractName[],
+    () => {
+      // optionally exclude some contracts from the debug UI (e.g. local mock tokens)
+      const EXCLUDED_CONTRACTS = new Set<string>(["MockPYUSD"]);
+      return Object.keys(contractsData)
+        .filter(name => !EXCLUDED_CONTRACTS.has(name))
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })) as ContractName[];
+    },
     [contractsData],
   );
 
