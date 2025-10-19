@@ -8,6 +8,8 @@ import { hardhat } from "viem/chains";
 import { Bars3Icon, BugAntIcon } from "@heroicons/react/24/outline";
 import { FaucetButton, RainbowKitCustomConnectButton } from "~~/components/scaffold-eth";
 import { useOutsideClick, useTargetNetwork } from "~~/hooks/scaffold-eth";
+import { BoltIcon } from "@heroicons/react/24/outline";
+
 
 type HeaderMenuLink = {
   label: string;
@@ -23,6 +25,11 @@ export const menuLinks: HeaderMenuLink[] = [
   {
     label: "Access Lancer App",
     href: "/debug",
+  },
+    {
+    label: "Envio",
+    href: "/envio",
+    icon: <BoltIcon className="h-4 w-4" />,
   },
 ];
 
