@@ -29,10 +29,11 @@ const Home: NextPage = () => {
         <section className="bg-base-100 rounded-2xl p-8 md:p-12 shadow-lg">
           <div className="md:flex md:items-center md:justify-between">
             <div className="md:flex-1">
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">Launch on-chain marketplaces in minutes</h2>
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">Deploy your own on-chain marketplaces</h2>
               <p className="text-lg text-base-content/70 mb-6 max-w-3xl">
-                Lancer Protocol makes it simple to deploy and manage decentralized marketplaces. Integrate payments,
-                handle disputes with a transparent protocol, and connect to Envio for indexed on-chain data.
+                Lancer Protocol allows anyone to deploy and manage decentralized marketplaces, whit integrated
+                escrow system for payments and indexed on-chain data by Envio. While connect them to an 
+                on-chain dispute resolution system.
               </p>
 
               <div className="flex flex-wrap gap-3">
