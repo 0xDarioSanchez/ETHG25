@@ -23,7 +23,7 @@ export const menuLinks: HeaderMenuLink[] = [
     href: "/",
   },
   {
-    label: "Access Lancer App",
+    label: "Lancer App",
     href: "/debug",
   },
     {

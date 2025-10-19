@@ -101,7 +101,9 @@ export const DisplayVariable = ({
               // Format primitive numeric results for token-like functions (e.g., disputePrice)
               const fnName = String(abiFunction.name).toLowerCase();
 
-              const shouldFormatToken = /price|amount|fee/.test(fnName);
+              // Only format the specific on-chain token amount `disputePrice` to human-readable PYUSD.
+              // Avoid formatting other numeric values like `feePercent` which represent percentages.
+              const shouldFormatToken = fnName === "disputeprice";
 
               const formatTokenValue = (val: any) => {
                 if (val == null) return val;

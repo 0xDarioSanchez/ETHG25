@@ -9,6 +9,8 @@ import {
   getSchemaEntities,
   getMarketplaceDeployments,
 } from "~~/utils/graphql";
+import { getEventSelector, decodeEventLog } from "viem";
+import { usePublicClient } from "wagmi";
 
 /**
  * Envio Indexer Page
@@ -24,6 +26,11 @@ const EnvioPage = () => {
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [schemaEntities, setSchemaEntities] = useState<EntityInfo[]>([]);
   const [marketplaces, setMarketplaces] = useState<Array<{ id: string; marketplace: string; creator: string }>>([]);
+  const [registeredUsers, setRegisteredUsers] = useState<any[]>([]);
+  const [isScanningUsers, setIsScanningUsers] = useState(false);
+  const [deals, setDeals] = useState<any[]>([]);
+  const [isScanningDeals, setIsScanningDeals] = useState(false);
+  const publicClient = usePublicClient();
 
   // Check indexer status by checking the console/state endpoint
   const checkIndexerStatus = async () => {
@@ -90,17 +97,59 @@ const EnvioPage = () => {
       const [counts, events] = await Promise.all([getEventCounts(), getRecentEvents(5)]);
 
       // Also fetch marketplace deployments from Envio specifically
+      let mps: Array<{ id: string; marketplace: string; creator: string }> = [];
       try {
-        const mps = await getMarketplaceDeployments();
+        mps = await getMarketplaceDeployments();
         setMarketplaces(mps);
         console.log("📊 Marketplaces loaded:", mps);
       } catch (err) {
         console.error("❌ Failed to load marketplaces:", err);
         setMarketplaces([]);
+        mps = [];
       }
 
       setEventCounts(counts);
       setRecentEvents(events);
+      // Try to detect a registered-user entity in the fetched events/schema
+      let usersFromEnvio: any[] = [];
+      try {
+        const userEntityName = Object.keys(events || {}).find(name => /userregistered|registereduser|user_registered|user/i.test(name));
+        if (userEntityName) {
+          usersFromEnvio = events[userEntityName] || [];
+          setRegisteredUsers(usersFromEnvio as any[]);
+          console.log("📊 Registered users loaded from entity:", userEntityName, usersFromEnvio);
+        } else {
+          setRegisteredUsers([]);
+          console.log("ℹ️ No user-related entity found in Envio schema/events");
+        }
+      } catch (err) {
+        console.error("❌ Failed to extract registered users:", err);
+        setRegisteredUsers([]);
+        usersFromEnvio = [];
+      }
+
+      // If Envio didn't provide registered users, fall back to on-chain log scan
+      try {
+        if ((usersFromEnvio?.length ?? 0) === 0 && (mps?.length ?? 0) > 0) {
+          // kick off on-chain scan (don't await here to avoid delaying UI)
+          scanRegisteredUsersOnChain(mps).catch(e => console.error("On-chain scan failed:", e));
+        }
+      } catch (err) {
+        console.error("❌ fallback on-chain scan failed:", err);
+      }
+
+      // If Envio didn't provide deals, fall back to on-chain log scan for DealCreated
+      try {
+        const dealsEntityName = Object.keys(events || {}).find(name => /dealcreated|deal_created|deal/i.test(name));
+        const dealsFromEnvio = dealsEntityName ? events[dealsEntityName] || [] : [];
+        if ((dealsFromEnvio?.length ?? 0) > 0) {
+          setDeals(dealsFromEnvio);
+        } else if ((mps?.length ?? 0) > 0) {
+          scanDealsOnChain(mps).catch(e => console.error("On-chain deals scan failed:", e));
+        }
+      } catch (err) {
+        console.error("❌ fallback on-chain deals scan failed:", err);
+      }
       console.log("📊 Events loaded:", { counts, events });
     } catch (error) {
       console.error("❌ Error fetching events:", error);
@@ -108,6 +157,172 @@ const EnvioPage = () => {
       setIsLoadingEvents(false);
     }
   }, [indexerStatus]);
+
+  // Scan the blockchain for UserRegistered events for known marketplaces (on-chain fallback)
+  const scanRegisteredUsersOnChain = async (mpsParam?: Array<{ id: string; marketplace: string; creator: string }>) => {
+    const mpsToScan = mpsParam ?? marketplaces ?? [];
+    console.log("🔎 scanRegisteredUsersOnChain called. publicClient:", !!publicClient, "marketplacesCount:", mpsToScan.length);
+    if (!publicClient) {
+      console.warn("No publicClient available, aborting on-chain scan");
+      return;
+    }
+    if (!mpsToScan || mpsToScan.length === 0) {
+      console.log("No marketplaces to scan");
+      return;
+    }
+
+    setIsScanningUsers(true);
+    try {
+      const eventAbi = {
+        type: "event",
+        name: "UserRegistered",
+        inputs: [
+          { indexed: true, name: "user", type: "address" },
+          { indexed: false, name: "isPayer", type: "bool" },
+          { indexed: false, name: "isBeneficiary", type: "bool" },
+          { indexed: false, name: "isJudge", type: "bool" },
+        ],
+      } as const;
+
+      const selector = getEventSelector(eventAbi as any);
+
+      const found: any[] = [];
+
+      // Limit scan to reasonable block range if needed; using fromBlock 0 for local dev
+      const latestBlock = await publicClient.getBlockNumber();
+
+      for (const mp of mpsToScan) {
+        try {
+          const addr = mp.marketplace;
+          const logs = await publicClient.getLogs({
+            address: addr as any,
+            topics: [selector],
+            fromBlock: 0n,
+            toBlock: BigInt(latestBlock),
+          } as any);
+
+          for (const l of logs) {
+            try {
+              const decoded = decodeEventLog({ abi: [eventAbi as any], data: l.data, topics: l.topics as any }) as any;
+              found.push({
+                id: `${addr}_${l.blockNumber}_${l.logIndex}`,
+                marketplace: addr,
+                user: decoded.args.user,
+                isPayer: decoded.args.isPayer,
+                isBeneficiary: decoded.args.isBeneficiary,
+                isJudge: decoded.args.isJudge,
+              });
+            } catch (e) {
+              console.warn("Failed to decode UserRegistered log", e);
+            }
+          }
+        } catch (e) {
+          console.warn("Failed to fetch logs for marketplace", mp, e);
+        }
+      }
+
+      // Deduplicate by user+marketplace
+      const dedup = Object.values(
+        found.reduce((acc: Record<string, any>, item: any) => {
+          const key = `${item.marketplace.toLowerCase()}_${String(item.user).toLowerCase()}`;
+          if (!acc[key]) acc[key] = item;
+          return acc;
+        }, {}),
+      );
+
+      setRegisteredUsers(dedup);
+      console.log("🔎 On-chain registered users found:", dedup.length, dedup.slice(0, 5));
+    } finally {
+      setIsScanningUsers(false);
+    }
+  };
+
+  // Scan the blockchain for DealCreated events for known marketplaces (on-chain fallback)
+  const scanDealsOnChain = async (mpsParam?: Array<{ id: string; marketplace: string; creator: string }>) => {
+    const mpsToScan = mpsParam ?? marketplaces ?? [];
+    console.log("🔎 scanDealsOnChain called. publicClient:", !!publicClient, "marketplacesCount:", mpsToScan.length);
+    if (!publicClient) {
+      console.warn("No publicClient available, aborting on-chain deals scan");
+      return;
+    }
+    if (!mpsToScan || mpsToScan.length === 0) {
+      console.log("No marketplaces to scan for deals");
+      return;
+    }
+
+    setIsScanningDeals(true);
+    try {
+      const eventAbi = {
+        type: "event",
+        name: "DealCreated",
+        inputs: [
+          { indexed: true, name: "dealId", type: "uint64" },
+          { indexed: true, name: "payer", type: "address" },
+          { indexed: true, name: "beneficiary", type: "address" },
+          { indexed: false, name: "amount", type: "uint256" },
+        ],
+      } as const;
+
+      const selector = getEventSelector(eventAbi as any);
+
+      const found: any[] = [];
+
+      // Limit scan to reasonable block range if needed; using fromBlock 0 for local dev
+      const latestBlock = await publicClient.getBlockNumber();
+
+      for (const mp of mpsToScan) {
+        try {
+          const addr = mp.marketplace;
+          const logs = await publicClient.getLogs({
+            address: addr as any,
+            topics: [selector],
+            fromBlock: 0n,
+            toBlock: BigInt(latestBlock),
+          } as any);
+
+          for (const l of logs) {
+            try {
+              const decoded = decodeEventLog({ abi: [eventAbi as any], data: l.data, topics: l.topics as any }) as any;
+              found.push({
+                id: `${addr}_${l.blockNumber}_${l.logIndex}`,
+                marketplace: addr,
+                dealId: decoded.args.dealId,
+                payer: decoded.args.payer,
+                beneficiary: decoded.args.beneficiary,
+                amount: decoded.args.amount,
+              });
+            } catch (e) {
+              console.warn("Failed to decode DealCreated log", e);
+            }
+          }
+        } catch (e) {
+          console.warn("Failed to fetch logs for marketplace", mp, e);
+        }
+      }
+
+      // Deduplicate by marketplace+dealId
+      const dedup = Object.values(
+        found.reduce((acc: Record<string, any>, item: any) => {
+          const key = `${String(item.marketplace).toLowerCase()}_${String(item.dealId)}`;
+          if (!acc[key]) acc[key] = item;
+          return acc;
+        }, {}),
+      );
+
+      setDeals(dedup);
+      console.log("🔎 On-chain deals found:", dedup.length, dedup.slice(0, 5));
+    } finally {
+      setIsScanningDeals(false);
+    }
+  };
+
+  // re-scan when marketplaces change
+  useEffect(() => {
+    if (marketplaces && marketplaces.length > 0) {
+      scanRegisteredUsersOnChain().catch(e => console.error(e));
+      scanDealsOnChain().catch(e => console.error(e));
+    }
+  }, [marketplaces]);
 
   // Update Envio config
   const updateEnvioConfig = async () => {
@@ -182,16 +397,12 @@ const EnvioPage = () => {
           <div className="flex items-center justify-center mb-4">
             <img src="https://docs.envio.dev/img/envio-logo.png" alt="Envio Logo" className="h-16 w-auto" />
           </div>
-          <p className="text-lg text-base-content/70">The fastest, most flexible way to get on-chain data.</p>
+          <p className="text-lg text-base-content/70">Here you can access all the indexed data.</p>
         </div>
 
         {/* Main Content */}
         <div className="bg-base-100 rounded-lg shadow-lg p-6">
           <div className="text-center">
-            <h2 className="text-2xl font-semibold mb-4">Welcome to Envio</h2>
-            <p className="text-sm text-base-content/70 mt-1">
-              Make sure to read the Prerequisites and How to Use sections below!
-            </p>
 
             {/* Status Card */}
             <div
@@ -261,69 +472,25 @@ const EnvioPage = () => {
               )}
             </div>
 
-            {/* Generate Button */}
-            <div className="bg-base-200 rounded-lg p-4 mb-6">
-              <h3 className="font-semibold mb-2 flex items-center">
-                <BoltIcon className="h-5 w-5 mr-2 text-primary" />
-                Generate Boilerplate Indexer
-              </h3>
-              <p className="text-sm text-base-content/70 mb-3">
-                Generate the Envio configuration files based on your current deployed contracts (deployed via yarn
-                deploy). This will overwrite the config.yaml, schema.graphql, and EventHandlers.ts files to set up a
-                boilerplate indexer ready to index these contracts
-              </p>
-              <button
-                onClick={handleGenerateConfig}
-                disabled={isUpdating}
-                className={`btn btn-primary btn-sm ${isUpdating ? "loading" : ""}`}
-              >
-                {isUpdating ? "Generating..." : "Generate"}
-              </button>
-              {updateMessage && (
-                <div
-                  className={`mt-3 p-2 rounded text-sm ${
-                    updateMessage.startsWith("✅")
-                      ? "bg-success/10 text-success border border-success/20"
-                      : "bg-error/10 text-error border border-error/20"
-                  }`}
-                >
-                  {updateMessage}
-                </div>
-              )}
-            </div>
 
-            {/* Quick Links */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+
+            {/* Marketplaces indexed by Envio */}
+            <div className="mb-8">
               <div className="bg-base-200 rounded-lg p-4">
-                <h3 className="font-semibold mb-2 text-center flex items-center justify-center">
-                  <BoltIcon className="h-5 w-5 mr-2 text-primary" />
-                  Envio Console
-                </h3>
-                <p className="text-sm text-base-content/70 mb-3">View your indexer progress and analytics.</p>
-                <a
-                  href="https://envio.dev/console"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-primary btn-sm"
-                >
-                  Open Console
-                </a>
-              </div>
-
-              {/* Marketplaces indexed by Envio */}
-              <div className="bg-base-200 rounded-lg p-4 mb-8">
                 <h3 className="font-semibold mb-2 text-center">Indexed Marketplaces</h3>
                 {marketplaces.length === 0 ? (
                   <div className="text-sm text-base-content/50 text-center">No marketplaces indexed yet</div>
                 ) : (
                   <div className="space-y-2">
                     {marketplaces.map(mp => (
-                      <div key={mp.id} className="p-2 bg-base-300 rounded flex items-center justify-between">
+                      <div key={mp.id} className="p-2 bg-base-300 rounded">
                         <div className="text-left">
-                          <div className="text-sm font-bold">{mp.marketplace}</div>
+                          <div className="text-sm font-bold break-all">{mp.marketplace}</div>
                           <div className="text-xs text-base-content/70">creator: {mp.creator}</div>
                         </div>
-                        <div className="flex items-center gap-2">
+
+                        {/* Actions below the address to avoid cramped layout */}
+                        <div className="mt-2 flex justify-end gap-2">
                           <button
                             className="btn btn-ghost btn-xs"
                             onClick={() => navigator.clipboard.writeText(mp.marketplace)}
@@ -345,25 +512,56 @@ const EnvioPage = () => {
                   </div>
                 )}
               </div>
-
-              <div className="bg-base-200 rounded-lg p-4">
-                <h3 className="font-semibold mb-2 text-center flex items-center justify-center">
-                  <BoltIcon className="h-5 w-5 mr-2 text-primary" />
-                  Hasura Console
-                </h3>
-                <p className="text-sm text-base-content/70 mb-3">View and query all your indexed data in Hasura.</p>
-                <a
-                  href="http://localhost:8080/console/data/manage"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-primary btn-sm"
-                >
-                  Open Hasura
-                </a>
-              </div>
             </div>
 
-            {/* Events Display */}
+
+              {/* Registered Users (indexed by Envio) */}
+              <div className="bg-base-200 rounded-lg p-4 mb-8">
+                <h3 className="font-semibold mb-2 text-center">Registered Users</h3>
+                  {isScanningUsers ? (
+                    <div className="text-sm text-base-content/70 text-center">Scanning chain for registered users...</div>
+                  ) : registeredUsers.length === 0 ? (
+                    <div className="text-sm text-base-content/50 text-center">No registered users indexed yet</div>
+                  ) : (
+                  <div className="space-y-2">
+                    {registeredUsers.map((u: any, i: number) => (
+                      <div key={u.id ?? i} className="p-2 bg-base-300 rounded text-xs">
+                        {Object.entries(u).map(([k, v]) => (
+                          <div key={k} className="flex justify-between">
+                            <span className="font-bold text-base-content mr-2">{k}:</span>
+                            <span className="font-mono">{typeof v === "object" ? JSON.stringify(v) : String(v)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Deals (on-chain or via Envio) */}
+              <div className="bg-base-200 rounded-lg p-4 mb-8">
+                <h3 className="font-semibold mb-2 text-center">Deals Created</h3>
+                {isScanningDeals ? (
+                  <div className="text-sm text-base-content/70 text-center">Scanning chain for deals...</div>
+                ) : deals.length === 0 ? (
+                  <div className="text-sm text-base-content/50 text-center">No deals indexed yet</div>
+                ) : (
+                  <div className="space-y-2">
+                    {deals.map((d: any, i: number) => (
+                      <div key={d.id ?? i} className="p-2 bg-base-300 rounded text-xs">
+                        {Object.entries(d).map(([k, v]) => (
+                          <div key={k} className="flex justify-between">
+                            <span className="font-bold text-base-content mr-2">{k}:</span>
+                            <span className="font-mono">{typeof v === "object" ? JSON.stringify(v) : String(v)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Events Display */}
             {indexerStatus === "active" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 <div className="bg-base-200 rounded-lg p-4 relative">
@@ -496,75 +694,72 @@ const EnvioPage = () => {
               </div>
             )}
 
-            {/* Prerequisites */}
-            <div className="mt-8 p-4 bg-info/10 border border-info/20 rounded-lg">
-              <h3 className="font-semibold text-info mb-3">Prerequisites</h3>
-              <p className="text-sm text-base-content/70 mb-3">
-                Make sure you have the following installed before using the Envio indexer:
-              </p>
-              <ul className="text-sm text-base-content/70 text-left space-y-1">
-                <li>
-                  • <strong>Node.js v20</strong> - Required for the development environment
-                </li>
-                <li>
-                  • <strong>pnpm v8+</strong> - Package manager (use v8 or newer)
-                </li>
-                <li>
-                  • <strong>Docker Desktop</strong> - Required for running the indexer locally
-                </li>
-              </ul>
-            </div>
+            {/* Quick Links (moved to bottom) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+              <div className="bg-base-200 rounded-lg p-4">
+                <h3 className="font-semibold mb-2 text-center flex items-center justify-center">
+                  <BoltIcon className="h-5 w-5 mr-2 text-primary" />
+                  Envio Console
+                </h3>
+                <p className="text-sm text-base-content/70 mb-3">View your indexer progress and analytics.</p>
+                <a
+                  href="https://envio.dev/console"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-primary btn-sm"
+                >
+                  Open Console
+                </a>
+              </div>
 
-            {/* Instructions */}
-            <div className="mt-6 p-4 bg-success/10 border border-success/20 rounded-lg">
-              <h3 className="font-semibold text-success mb-3">How to Use</h3>
-              <div className="text-sm text-base-content/70 space-y-3">
-                <p>
-                  <strong>Step 1:</strong> Deploy your smart contracts using{" "}
-                  <code className="bg-base-200 px-1 rounded">yarn deploy</code>. This is required for the indexer to
-                  detect your contracts.
-                </p>
-                <p>
-                  <strong>Step 2:</strong> Click &quot;Generate&quot; above to generate a boilerplate indexer that is
-                  ready to index all events from your deployed contracts. You can regenerate this at any time.
-                </p>
-                <p>
-                  <strong>Step 3:</strong> Run <code className="bg-base-200 px-1 rounded">pnpm dev</code> in the{" "}
-                  <code className="bg-base-200 px-1 rounded">packages/envio</code> directory to start the indexer. This
-                  will begin indexing your contract events.
-                </p>
-                <p>
-                  <strong>Step 4:</strong> Customize your indexer in the{" "}
-                  <code className="bg-base-200 px-1 rounded">packages/envio</code> folder. All Envio commands should be
-                  run from this directory as your working root.
-                  <br />
-                  <strong>
-                    *Note: Until the indexer has an event to process it will look like it&apos;s permanently loading.
-                  </strong>
-                </p>
-                <p>
-                  Need help? Check out the{" "}
-                  <a
-                    href="https://docs.envio.dev/docs/HyperIndex/overview"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline"
-                  >
-                    Envio documentation
-                  </a>{" "}
-                  for detailed guides and examples.
-                </p>
-                <p className="font-semibold text-success">Happy indexing! 🚀</p>
-                <div className="mt-4 p-3 bg-warning/10 border border-warning/20 rounded-lg">
-                  <p className="text-sm text-base-content/80">
-                    <strong>Note:</strong> If you regenerate the boilerplate indexer after making changes, you&apos;ll
-                    need to stop the running indexer (Ctrl+C) and restart it with{" "}
-                    <code className="bg-base-200 px-1 rounded">pnpm dev</code>
-                    for the changes to take effect.
-                  </p>
-                </div>
+              <div className="bg-base-200 rounded-lg p-4">
+                <h3 className="font-semibold mb-2 text-center flex items-center justify-center">
+                  <BoltIcon className="h-5 w-5 mr-2 text-primary" />
+                  Hasura Console
+                </h3>
+                <p className="text-sm text-base-content/70 mb-3">View and query all your indexed data in Hasura.</p>
+                <a
+                  href="http://localhost:8080/console/data/manage"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-primary btn-sm"
+                >
+                  Open Hasura
+                </a>
               </div>
             </div>
+
+            {/* Generate Button */}
+            <div className="bg-base-200 rounded-lg p-4 mb-8 mt-6">
+              <h3 className="font-semibold mb-2 flex items-center">
+                <BoltIcon className="h-5 w-5 mr-2 text-primary" />
+                Generate Boilerplate Indexer
+              </h3>
+              <p className="text-sm text-base-content/70 mb-3">
+                Generate the Envio configuration files based on your current deployed contracts (deployed via yarn
+                deploy). This will overwrite the config.yaml, schema.graphql, and EventHandlers.ts files to set up a
+                boilerplate indexer ready to index these contracts
+              </p>
+              <button
+                onClick={handleGenerateConfig}
+                disabled={isUpdating}
+                className={`btn btn-primary btn-sm ${isUpdating ? "loading" : ""}`}
+              >
+                {isUpdating ? "Generating..." : "Generate"}
+              </button>
+              {updateMessage && (
+                <div
+                  className={`mt-3 p-2 rounded text-sm ${
+                    updateMessage.startsWith("✅")
+                      ? "bg-success/10 text-success border border-success/20"
+                      : "bg-error/10 text-error border border-error/20"
+                  }`}
+                >
+                  {updateMessage}
+                </div>
+              )}
+            </div>
+
           </div>
         </div>
       </div>

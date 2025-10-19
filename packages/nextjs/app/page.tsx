@@ -77,9 +77,7 @@ const Home: NextPage = () => {
           </section>
         </main>
 
-        <footer className="container mx-auto px-6 py-8 text-center text-sm text-muted">
-          Built with ❤️ — edit <code className="font-mono">packages/hardhat/contracts/ProtocolContract.sol</code>
-        </footer>
+
       </div>
     </>
   );
