@@ -60,7 +60,7 @@ const Home: NextPage = () => {
             </div>
 
             <div className="mt-8 md:mt-0 md:ml-8 w-full md:w-96">
-              <div className="bg-gradient-to-br from-primary/5 to-secondary/5 p-6 rounded-xl shadow-inner">
+              <div className="bg-base-200 p-6 rounded-xl shadow-inner">
                 <h4 className="font-semibold mb-2">More</h4>
                 <p className="text-sm text-base-content/70">Do you want to learn more? Go to the <a href="/about" className="font-semibold underline">About</a> section.</p>
               </div>
@@ -94,7 +94,7 @@ const Home: NextPage = () => {
         {/* CTA */}
         <section className="mt-12 bg-base-200 rounded-2xl p-8 text-center">
           <h3 className="text-2xl font-bold mb-3">Ready to build?</h3>
-          <p className="text-base text-base-content/70 mb-6">Start by deploying a marketplace and try registering a user or creating a deal.</p>
+          <p className="text-base text-base-content/70 mb-6">Start by deploying your own marketplace and interact with it.</p>
           <div className="flex items-center justify-center gap-3">
             <Link href="/debug" className="btn btn-primary btn-lg">Launch App</Link>
             <Link href="/envio" className="btn btn-ghost btn-lg">View Indexer</Link>

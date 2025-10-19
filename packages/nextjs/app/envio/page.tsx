@@ -598,9 +598,9 @@ const EnvioPage = () => {
                         if (count === 0) return null;
                         return (
                           <div key={eventType} className="flex justify-between text-sm">
-                            <span className="text-base-content/70">{eventType.replace(/_/g, " ")}</span>
-                            <span className="font-semibold text-primary">{String(count)}</span>
-                          </div>
+                              <span className="text-base-content/70">{eventType.replace(/_/g, " ")}</span>
+                              <span className="font-semibold text-base-content/70">{String(count)}</span>
+                            </div>
                         );
                       })}
                       {Object.values(eventCounts).every(count => count === 0) && (
