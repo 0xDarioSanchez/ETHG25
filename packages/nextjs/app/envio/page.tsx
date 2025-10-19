@@ -2,7 +2,13 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { BoltIcon } from "@heroicons/react/24/outline";
-import { EntityInfo, getEventCounts, getRecentEvents, getSchemaEntities } from "~~/utils/graphql";
+import {
+  EntityInfo,
+  getEventCounts,
+  getRecentEvents,
+  getSchemaEntities,
+  getMarketplaceDeployments,
+} from "~~/utils/graphql";
 
 /**
  * Envio Indexer Page
@@ -17,6 +23,7 @@ const EnvioPage = () => {
   const [recentEvents, setRecentEvents] = useState<any>(null);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [schemaEntities, setSchemaEntities] = useState<EntityInfo[]>([]);
+  const [marketplaces, setMarketplaces] = useState<Array<{ id: string; marketplace: string; creator: string }>>([]);
 
   // Check indexer status by checking the console/state endpoint
   const checkIndexerStatus = async () => {
@@ -81,6 +88,16 @@ const EnvioPage = () => {
       }
 
       const [counts, events] = await Promise.all([getEventCounts(), getRecentEvents(5)]);
+
+      // Also fetch marketplace deployments from Envio specifically
+      try {
+        const mps = await getMarketplaceDeployments();
+        setMarketplaces(mps);
+        console.log("📊 Marketplaces loaded:", mps);
+      } catch (err) {
+        console.error("❌ Failed to load marketplaces:", err);
+        setMarketplaces([]);
+      }
 
       setEventCounts(counts);
       setRecentEvents(events);
@@ -291,6 +308,42 @@ const EnvioPage = () => {
                 >
                   Open Console
                 </a>
+              </div>
+
+              {/* Marketplaces indexed by Envio */}
+              <div className="bg-base-200 rounded-lg p-4 mb-8">
+                <h3 className="font-semibold mb-2 text-center">Indexed Marketplaces</h3>
+                {marketplaces.length === 0 ? (
+                  <div className="text-sm text-base-content/50 text-center">No marketplaces indexed yet</div>
+                ) : (
+                  <div className="space-y-2">
+                    {marketplaces.map(mp => (
+                      <div key={mp.id} className="p-2 bg-base-300 rounded flex items-center justify-between">
+                        <div className="text-left">
+                          <div className="text-sm font-bold">{mp.marketplace}</div>
+                          <div className="text-xs text-base-content/70">creator: {mp.creator}</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            className="btn btn-ghost btn-xs"
+                            onClick={() => navigator.clipboard.writeText(mp.marketplace)}
+                            title="Copy marketplace address"
+                          >
+                            📋
+                          </button>
+                          <a
+                            className="btn btn-primary btn-xs"
+                            href={`https://sepolia.etherscan.io/address/${mp.marketplace}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            Open
+                          </a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="bg-base-200 rounded-lg p-4">

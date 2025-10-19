@@ -77,9 +77,9 @@ const Web3Provider = ({ children }: { children: React.ReactNode }) => {
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <ConnectKitProvider theme="soft" mode="light">
-          {/* NexusProvider can perform client-side initialization that triggers state updates.
-             To avoid React's "update a component while rendering a different component (Hydrate)"
-             warning during server hydration, only mount NexusProvider after the client has mounted. */}
+          {/* Only mount NexusProvider after the client has mounted to avoid React's 
+              "update a component while rendering a different component (Hydrate)"
+              warning during server hydration,  */}
           <DevClientErrorListener />
           <ClientOnly>
             <NexusProvider>{children}</NexusProvider>

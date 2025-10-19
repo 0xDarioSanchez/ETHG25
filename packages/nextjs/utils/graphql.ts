@@ -194,3 +194,22 @@ export async function getRecentEvents(limit: number = 10) {
   const result = await queryGraphQL<Record<string, any[]>>(query);
   return result.data;
 }
+
+// Fetch the FactoryContract MarketplaceDeployed entities specifically
+export async function getMarketplaceDeployments() {
+  const query = `query GetMarketplaceDeployments {
+    FactoryContract_MarketplaceDeployed(order_by: { id: desc }) {
+      id
+      marketplace
+      creator
+    }
+  }`;
+
+  try {
+    const result = await queryGraphQL<{ FactoryContract_MarketplaceDeployed: Array<{ id: string; marketplace: string; creator: string }> }>(query);
+    return result.data.FactoryContract_MarketplaceDeployed || [];
+  } catch (error) {
+    console.error("Failed to fetch marketplace deployments from Envio/Hasura:", error);
+    return [];
+  }
+}
