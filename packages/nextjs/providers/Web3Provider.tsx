@@ -19,6 +19,7 @@ import {
 import { ConnectKitProvider, getDefaultConfig } from "connectkit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import NexusProvider from "./NexusProvider";
+import { useEffect, useState } from "react";
 
 const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
 
@@ -76,11 +77,49 @@ const Web3Provider = ({ children }: { children: React.ReactNode }) => {
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <ConnectKitProvider theme="soft" mode="light">
-          <NexusProvider>{children}</NexusProvider>
+          {/* NexusProvider can perform client-side initialization that triggers state updates.
+             To avoid React's "update a component while rendering a different component (Hydrate)"
+             warning during server hydration, only mount NexusProvider after the client has mounted. */}
+          <DevClientErrorListener />
+          <ClientOnly>
+            <NexusProvider>{children}</NexusProvider>
+          </ClientOnly>
         </ConnectKitProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );
+};
+
+const ClientOnly = ({ children }: { children: React.ReactNode }) => {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  if (!mounted) return null;
+  return <>{children}</>;
+};
+
+const DevClientErrorListener = () => {
+  useEffect(() => {
+    const onUnhandledRejection = (ev: PromiseRejectionEvent) => {
+      try {
+        console.error("Unhandled promise rejection:", ev.reason);
+        if (ev.reason && typeof ev.reason === "object") {
+          const msg = (ev.reason as any).message || JSON.stringify(ev.reason);
+          if (/failed to fetch/i.test(String(msg))) {
+            console.error("Network fetch failed. Check local services (envio, Hasura) and verify endpoints are reachable.");
+          }
+        }
+      } catch (e) {
+        console.error("Error in unhandled rejection handler", e);
+      }
+    };
+
+    window.addEventListener("unhandledrejection", onUnhandledRejection);
+    return () => window.removeEventListener("unhandledrejection", onUnhandledRejection);
+  }, []);
+
+  return null;
 };
 
 export default Web3Provider;

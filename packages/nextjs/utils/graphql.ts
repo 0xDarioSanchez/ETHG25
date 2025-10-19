@@ -110,7 +110,9 @@ export async function queryGraphQL<T>(query: string, variables?: Record<string, 
     });
 
     if (!response.ok) {
-      throw new Error(`GraphQL request failed: ${response.status} ${response.statusText}`);
+      const message = `GraphQL request failed: ${response.status} ${response.statusText} (url: ${ENVIO_GRAPHQL_URL})`;
+      console.error(message);
+      throw new Error(message);
     }
 
     const result = await response.json();
@@ -122,7 +124,19 @@ export async function queryGraphQL<T>(query: string, variables?: Record<string, 
 
     return result;
   } catch (error) {
-    console.error("GraphQL query error:", error);
+    // Provide more context for network-level failures so developers can quickly see if the envio/GraphQL
+    // service is unreachable (e.g. not running locally at http://localhost:8080)
+    if (error instanceof Error && /failed to fetch/i.test(error.message)) {
+      console.error(
+        `GraphQL network error when contacting ${ENVIO_GRAPHQL_URL}. Is the envio service running? Original error:`,
+        error,
+      );
+    } else {
+      console.error("GraphQL query error:", error);
+    }
+
+    // Re-throw so callers who expect a rejection still receive it. Callers may also be defensive and
+    // handle empty results (several callers in the app already do).
     throw error;
   }
 }
@@ -137,10 +151,14 @@ export async function getSchemaEntities(): Promise<EntityInfo[]> {
 async function getStaticSchemaEntities(): Promise<EntityInfo[]> {
   try {
     const response = await fetch("/api/envio/schema");
+    if (!response.ok) {
+      console.error(`Failed to fetch static schema: ${response.status} ${response.statusText} (url: /api/envio/schema)`);
+      return [];
+    }
     const schemaContent = await response.text();
     return parseSchemaEntities(schemaContent);
   } catch (error) {
-    console.error("Failed to fetch static schema:", error);
+    console.error("Failed to fetch static schema:", error, "(url: /api/envio/schema)");
     return [];
   }
 }

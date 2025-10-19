@@ -24,24 +24,39 @@ const EnvioPage = () => {
     try {
       // Check the console/state endpoint - this returns 200 when indexer is running
       // Using no-cors mode to bypass CORS restrictions
-      console.log("📡 Making request to http://localhost:9898/console/state");
-      const response = await fetch("http://localhost:9898/console/state", {
-        method: "GET",
-        mode: "no-cors",
-        signal: AbortSignal.timeout(2000),
-      });
+      const url = "http://localhost:9898/console/state";
+      console.log("📡 Making request to", url);
 
-      console.log("📊 Response status:", response.status);
-      console.log("📊 Response ok:", response.ok);
+      // Try a short timeout ping to the indexer. We prefer a simple fetch and rely on
+      // network errors to indicate the service is down. Using `no-cors` yields an
+      // opaque response which can't be inspected, but a network failure will still
+      // throw and be caught below.
+      let response: Response;
+      try {
+        response = await fetch(url, {
+          method: "GET",
+          mode: "no-cors",
+          signal: AbortSignal.timeout(2000),
+        } as RequestInit);
+      } catch (err) {
+        // Network-level failure (connection refused, DNS failure, CORS preflight failure, etc.)
+        console.error(`Failed to reach Envio indexer at ${url}. Is the indexer running?`);
+        console.error("Fetch error:", err);
+        setIndexerStatus("inactive");
+        setLastChecked(new Date());
+        return;
+      }
+
+      // If fetch doesn't throw, we treat the endpoint as reachable. In no-cors mode the
+      // response will be opaque (type === 'opaque') and status is typically 0; still,
+      // successful network-level completion means the service responded.
       console.log("📊 Response type:", response.type);
-
-      // With no-cors mode, we can't read the response, but if the request succeeds,
-      // it means the endpoint is reachable and the indexer is running
       console.log("✅ Indexer is ACTIVE - endpoint reachable");
       setIndexerStatus("active");
     } catch (error) {
-      // If we can't reach the endpoint, indexer is not running
-      console.log("❌ Indexer is INACTIVE - error:", error);
+      // Fallback catch - log with context
+      console.error("❌ Indexer status check failed:", error);
+      console.error("Hint: start the indexer with 'pnpm dev' in packages/envio and ensure ports 8080/9898 are available.");
       setIndexerStatus("inactive");
     }
     setLastChecked(new Date());
