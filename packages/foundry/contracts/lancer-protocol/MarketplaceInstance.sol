@@ -5,7 +5,6 @@ pragma solidity 0.8.30;
 //              IMPORTS          
 // ====================================
 
-import "forge-std/console.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -444,10 +443,8 @@ function createDeal(address _payer, uint256 _amount, uint64 _duration) external 
         address winnerAddress;
 
         if (winner) {
-            console.log("Payer wins dispute");
             winnerAddress = deal.payer;
         } else {
-            console.log("Beneficiary wins dispute");
             winnerAddress = deal.beneficiary;
         }
 

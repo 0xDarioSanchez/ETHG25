@@ -5,7 +5,6 @@ pragma solidity 0.8.30;
 //              IMPORTS          
 // ====================================
 
-import "forge-std/console.sol";
 
 import {MarketplaceInstance as Marketplace } from "./MarketplaceInstance.sol";
 import "./interfaces/IFactory.sol";

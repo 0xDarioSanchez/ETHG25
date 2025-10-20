@@ -36,6 +36,10 @@ const NexusBridge = () => {
     sdk: nexusSDK!,
     type: "bridge",
   });
+
+  if (!nexusSDK) {
+    return <div>Loading...</div>;
+  }
   const [isLoading, setIsLoading] = useState(false);
 
   const initiateBridge = async () => {
