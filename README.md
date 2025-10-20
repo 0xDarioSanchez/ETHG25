@@ -1,5 +1,7 @@
 TODO
 
+## Explorer
+[Lancer Protocol Blockscout Explorer](https://lancer.cloud.blockscout.com/)
 
 ## 🧱 Roadmap
 

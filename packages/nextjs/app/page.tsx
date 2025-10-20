@@ -41,7 +41,7 @@ const Home: NextPage = () => {
                   Open App
                 </Link>
 
-                <Link href="/blockexplorer" className="btn btn-outline btn-md">
+                <Link href="https://lancer.cloud.blockscout.com" className="btn btn-outline btn-md">
                   Block Explorer
                 </Link>
 

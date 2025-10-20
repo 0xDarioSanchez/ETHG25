@@ -31,6 +31,11 @@ export const menuLinks: HeaderMenuLink[] = [
     href: "/envio",
     icon: <BoltIcon className="h-4 w-4" />,
   },
+  {
+    label: "Blockscout",
+    href: "https://lancer.cloud.blockscout.com",
+    icon: <BugAntIcon className="h-4 w-4" />,
+  },
 ];
 
 export const HeaderMenuLinks = () => {
@@ -42,6 +47,19 @@ export const HeaderMenuLinks = () => {
         const isActive = pathname === href;
         return (
           <li key={href}>
+            {href.startsWith("http") ? (
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`${
+                isActive ? "bg-secondary shadow-md" : ""
+              } hover:bg-secondary hover:shadow-md focus:!bg-secondary active:!text-neutral py-1.5 px-3 text-base rounded-full gap-2 grid grid-flow-col`}
+            >
+              {icon}
+              <span className="font-semibold">{label}</span>
+            </a>
+          ) : (
             <Link
               href={href}
               passHref
@@ -52,6 +70,7 @@ export const HeaderMenuLinks = () => {
               {icon}
               <span className="font-semibold">{label}</span>
             </Link>
+          )}
           </li>
         );
       })}
