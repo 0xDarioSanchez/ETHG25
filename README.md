@@ -36,27 +36,27 @@ Web3 escrow-as-a-service infrastructure
 
 ⚙️ How It Works
 
-Escrow Creation
-A buyer or dApp creates an escrow via EscrowManager, specifying a seller and amount in **PYUSD**.
-Funds are locked securely in the contract until release or dispute.
+- Escrow Creation
+A buyer or dApp creates an escrow, specifying deal conditions, seller and the amount in **PYUSD**.
+Funds are locked securely in the contract until release or dispute resolution.
 
-Safe Payments
+- Safe Payments
 Payments remain in escrow until both sides approve, ensuring fairness.
 Developers can build custom logic around deadlines, milestones, or deliverables.
 
-Dispute Handling
+- Dispute Handling
 If a disagreement occurs, users can trigger a dispute through DisputeManager.
 The protocol emits verifiable events, which can be indexed via Envio HyperIndex or settled cross-chain with Avail.
 
-Smart Contract Transparency (**Blockscout**)
+- Smart Contract Transparency (**Blockscout**)
 Lancer integrates Blockscout for allowing anyone to explore contract code, transactions, and interactions directly from the Lancer frontend.
 
-Data Indexing (**Envio**)
+- Data Indexing (**Envio**)
 All on-chain events are indexed in real-time using Envio HyperIndex, allowing instant access to user escrows, dispute status, and analytics dashboards.
 
 
 
-## Setup
+## ✅ Setup
 
 ### Requirements
 
@@ -67,12 +67,11 @@ You need to install the following tools:
 
 ### Quickstart
 
-To get started with Scaffold-ETH 2, follow the steps below:
+To get started follow those steps:
 
-1. Install dependencies if it was skipped in CLI:
+1. Install dependencies:
 
 ```
-cd my-dapp-example
 yarn install
 ```
 
@@ -82,7 +81,7 @@ yarn install
 yarn chain
 ```
 
-This command starts a local Ethereum network using Foundry. The network runs on your local machine and can be used for testing and development. You can customize the network configuration in `packages/foundry/foundry.toml`.
+This command starts a local Ethereum network using Foundry. You can customize the network configuration in `packages/foundry/foundry.toml`.
 
 3. On a second terminal, deploy the test contract:
 
@@ -90,61 +89,84 @@ This command starts a local Ethereum network using Foundry. The network runs on 
 yarn deploy
 ```
 
-This command deploys a test smart contract to the local network. The contract is located in `packages/foundry/contracts` and can be modified to suit your needs. The `yarn deploy` command uses the deploy script located in `packages/foundry/script` to deploy the contract to the network. You can also customize the deploy script.
+This command deploys a test smart contract to the local network. If you want to deploy on a real testnet you can execute:
 
-4. On a third terminal, start your NextJS app:
+```
+forge script script/DeploySepolia.s.sol \
+  --rpc-url sepolia \
+  --private-key $SEPOLIA_DEPLOYER_KEY \
+  --broadcast
+```
+
+4. To start the frontend run:
 
 ```
 yarn start
 ```
 
-Visit your app on: `http://localhost:3000`. You can interact with your smart contract using the `Debug Contracts` page. You can tweak the app config in `packages/nextjs/scaffold.config.ts`.
+Visit the app on: `http://localhost:3000`. You can interact with your smart contract going to `Lancer App` page.
 
-Run smart contract test with `yarn foundry:test`
+5. For running smart contract test use 
+   
+```
+yarn foundry:test
+```
 
-- Edit your smart contracts in `packages/foundry/contracts`
-- Edit your frontend homepage at `packages/nextjs/app/page.tsx`. For guidance on [routing](https://nextjs.org/docs/app/building-your-application/routing/defining-routes) and configuring [pages/layouts](https://nextjs.org/docs/app/building-your-application/routing/pages-and-layouts) checkout the Next.js documentation.
-- Edit your deployment scripts in `packages/foundry/script`
 
 
+## ✅ Roadmap
 
-## 🧱 Roadmap
+### ⚡ **Lancer Protocol**
 
-### 🛠️ **Lancer Protocol**
-
-- [x] Set up project structure
-- [x] Develop Lancer Protocol's smart contracts 
-- [ ] Implement milestones system for `deals`
-- [ ] Define standard interfaces for third-party integrations  
-- [ ] Build reusable libraries (`LancerTypes`, `LancerErrors`, `SafeTransferLib`) for shared logic 
-- [ ] Implement `ProtocolContract` contract for handling disputes and emitting indexed events  
-- [ ] Implement an on-chain reputation scoring system based on previous disputes results
+- [x] Define smart contracts structure and flow
+- [x] Implement payment system integrating **PYUSD**
+- [x] Deploy smart contracts to testnet (Sepolia and Anvil)  
+- [x] Write unit and integrations tests for all the contracts
+- [x] Implement an on-chain reputation scoring system based on previous disputes results
+- [x] Implement disputes system emitting indexed events for **Envio**
+- [x] Verify contracts on **Blockscout** transparency  
+- [x] Integrate **Envio HyperIndex** to index Escrow and Dispute events in real time  
+- [x] Build a Dispute Dashboard to visualize indexed disputes via **Envio HyperIndex**  
+- [x] Implement fee model for protocol sustainability
 - [ ] Implement a tier system for judges, based on reputation
-- [ ] Write unit and integrations tests for all the contracts
-- [ ] Deploy **Lancer Protocol** contracts to testnet (e.g., Sepolia or Avail testnet)  
-- [ ] Verify contracts on **Blockscout** or **Etherscan** for transparency  
 - [ ] Develop Lancer Protocol's SDK and APIs
-- [ ] Add `CrossChainExecutor` for cross-chain intent execution via **Avail Nexus SDK**  
-- [ ] Integrate **Envio HyperIndex** to index Escrow and Dispute events in real time  
+- [ ] Add `CrossChainExecutor` for cross-chain payments  
 - [ ] Document ABI interfaces and protocol workflows for developers  
-- [ ] Add a module registration system for external developer contributions  
-- [ ] Demonstrate a cross-chain escrow flow between Ethereum and an Avail-supported network  
 - [ ] Build analytics dashboards using **Envio HyperIndex** for usage metrics  
 - [ ] Launch a developer documentation portal with examples and tutorials  
-- [ ] Publish SDK or CLI tools for easy protocol integration  
-- [ ] Set up **Envio indexing** service for production environment  
-- [ ] In `ProtocolContract` implement a random selection of the judges for the specific dispute
-- [ ] In `ProtocolContract` implement a private voting system to only show the votes after the votation is concluded
+- [ ] Implement a random selection of the judges for the specific dispute
+- [ ] Implement private voting mechanism with vote reveal only after conclusion
+- [ ] Launch developer documentation portal with tutorials
+- [ ] Add protocol upgradeability
+
+### 🛠️ **Lancer Factory**
+
+- [x] Define smart contracts structure and flow 
+- [x] Link Factory with Protocol contract
+- [x] Add Factory metadata registry (track deployed marketplaces and owners)
+- [ ] Deploy marketplace instances deterministically (CREATE2)
+- [ ] Enable upgrade mechanism for future marketplace templates
 
 ### 🛒 **Lancer Market**
 
-- [ ] Deploy **Lancer Market** as an example dApp consuming the protocol  
-- [ ] Set up front-end scaffold to interact with `LancerHub` and `EscrowManager`  
-- [ ] Implement basic job posting and hiring flow between buyers and freelancers  
-- [ ] Integrate wallet connection (MetaMask or RainbowKit) with **PYUSD** payment support  
-- [ ] Allow users to create and manage their on-chain escrows through the UI  
-- [ ] Implement a simple dispute panel showing indexed disputes via **Envio HyperIndex**  
+- [x] Deploy **Lancer Market** as an example dApp using Lancer Factory 
+- [x] Implement payment system with **PYUSD**
+- [x] Integrate wallet connection (MetaMask or RainbowKit) with **PYUSD** payment support  
+- [x] Implement basic job posting and hiring flow between `payers` and `beneficiaries`  
+- [x] Allow users to create and manage their on-chain escrows through the UI  
+- [ ] Implement milestones system for `deals`
 - [ ] Build a user dashboard to view active escrows, completed jobs, and earnings  
-- [ ] Display cross-chain actions or settlements powered by **Avail Nexus SDK**  
-- [ ] Add real-time event feedback for escrow creation, release, and dispute resolution  
-- [ ] Write integration tests for front-end and contract interactions  
+- [ ] Add real-time notifications for escrow creation, release, and dispute resolution  
+- [ ] Allow multiple tokens payments by converting them to **PYUSD** when sended
+
+### General
+- [x] Develop, test and deploy smart contract
+- [x] Develop front-end to interact with **Lancer Factory**, **Lancer Protocol** and deployed marketplaces
+- [ ] Write end-to-end integration tests between front-end, backend and contracts
+- [ ] Implement gasless meta-transactions for certain actions via relayers
+- [ ] Write technical whitepaper explaining Lancer Protocol design & economics
+- [ ] Apply to grants and accelerators
+- [ ] Launch community documentation site on GitHub Pages
+- [ ] Run security audit and formal verification on core contracts
+- [ ] Deploy to mainnet (Ethereum / Base / Arbitrum) once fully audited
+- [ ] Prepare v2 roadmap (potentially: governance, staking and multi-chain support)
