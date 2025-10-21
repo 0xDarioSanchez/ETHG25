@@ -54,7 +54,6 @@ contract MarketplaceInstance is ReentrancyGuard{
 
     //Struct to store deal information
     //`amount` indicates the total
-    //TODO add milestones system
     struct Deal {
         uint64 dealId;          //ID to identify the deal
         address payer;          //The one who pays, it can be a company or a buyer
@@ -136,6 +135,8 @@ contract MarketplaceInstance is ReentrancyGuard{
     event DisputeCreated(uint64 indexed dealId, address indexed requester);
     event DisputeResolved(uint64 indexed disputeId, address indexed winner);
     event AavePoolSet(address indexed pool);
+    event NewFeePercent(uint8 newFeePercent);
+    event OwnerWithdrawFromAaver(uint256 amount);
 
     // ====================================
     //           CUSTOM ERRORs          
@@ -167,15 +168,27 @@ contract MarketplaceInstance is ReentrancyGuard{
     // Only callable by the owner
     function setFeePercent(uint8 _newFeePercent) external onlyOwner {
         feePercent = _newFeePercent;
+        emit NewFeePercent(_newFeePercent);
     }
 
 
-    // Function to update the Avail executor address
-    // Only callable by the owner
-    function setAvailExecutor(address _newExecutor) external onlyOwner {
-        availExecutor = _newExecutor;
+    // To set the Aave pool address
+    // Only callable for Owner
+    function setAavePool(address _pool) external onlyOwner {
+        // require(address(aavePool) == address(0), "AAVE pool already set");
+        require(_pool != address(0), "Invalid pool");
+        aavePool = IPoolAaveV3(_pool);
+        emit AavePoolSet(_pool);
     }
 
+    // Allows the Owner to withdraw earnings from Aave
+    function withdrawFromAave() external onlyOwner nonReentrant {
+        uint256 amount = aavePrincipal;
+        aavePool.withdraw(address(pyusd), amount, address(this));
+        aavePrincipal = 0;
+       
+       emit OwnerWithdrawFromAaver(amount);
+    }
 
     // ====================================
     //         EXTERNAL FUNCTIONS          
@@ -286,44 +299,52 @@ function createDeal(address _payer, uint256 _amount, uint64 _duration) external 
 
         pyusd.safeTransferFrom(msg.sender, address(this), deal.amount);
 
+        // Approve pool and supply to Aave on behalf of this contract
+        require(address(aavePool) != address(0), "Aave pool not set");
+        IERC20(pyusd).approve(address(aavePool), 0);
+        IERC20(pyusd).approve(address(aavePool), deal.amount);
+
+        aavePool.supply(address(pyusd), deal.amount, address(this), 0);
+
+        aavePrincipal += deal.amount;
+
         emit DealAccepted(_dealId);
     }
 
 
-    //TODO 
-    // Called after Avail bridges tokens and executes the call on this contract
-    function acceptDealFromAvail(
-        uint64 _dealId,
-        address _payer,
-        address _token,
-        uint256 _amount
-        //,bytes calldata _extra
-    )
-        external
-        onlyAvail
-        nonReentrant
-        dealExists(_dealId)
-    {
-        Deal storage deal = deals[_dealId];
-        require(!deal.accepted, "Already accepted");
-        require(_amount == deal.amount, "Amount mismatch");
-        require(_payer == deal.payer, "Payer mismatch");
+    // // Called after Avail bridges tokens and executes the call on this contract
+    // function acceptDealFromAvail(
+    //     uint64 _dealId,
+    //     address _payer,
+    //     address _token,
+    //     uint256 _amount
+    //     //,bytes calldata _extra
+    // )
+    //     external
+    //     onlyAvail
+    //     nonReentrant
+    //     dealExists(_dealId)
+    // {
+    //     Deal storage deal = deals[_dealId];
+    //     require(!deal.accepted, "Already accepted");
+    //     require(_amount == deal.amount, "Amount mismatch");
+    //     require(_payer == deal.payer, "Payer mismatch");
 
-        // If token is PYUSD, accept directly
-        if (_token == address(pyusd)) {
-            // Avail transfer bridged tokens to this contract
-            //TODO how ensure the contract balance increased accordingly?
-            // rely on Avail to deliver tokens to this contract prior to call.
-            deal.accepted = true;
-            deal.startedAt = block.timestamp;
-            emit DealAccepted(_dealId);
-            //emit DealAcceptedFromAvail(_dealId, _payer, _token, _amount, _extra);
-            return;
-        }
+    //     // If token is PYUSD, accept directly
+    //     if (_token == address(pyusd)) {
+    //         // Avail transfer bridged tokens to this contract
+    //         //TODO how ensure the contract balance increased accordingly?
+    //         // rely on Avail to deliver tokens to this contract prior to call.
+    //         deal.accepted = true;
+    //         deal.startedAt = block.timestamp;
+    //         emit DealAccepted(_dealId);
+    //         //emit DealAcceptedFromAvail(_dealId, _payer, _token, _amount, _extra);
+    //         return;
+    //     }
 
-        // If token is not PYUSD, revert
-        revert("Unsupported token");
-    }
+    //     // If token is not PYUSD, revert
+    //     revert("Unsupported token");
+    // }
 
 
     //If `Payer` does not agree with the deal, it can reject it
@@ -355,7 +376,7 @@ function createDeal(address _payer, uint256 _amount, uint64 _duration) external 
         uint256 fee = (deal.amount * feePercent) / 100;
 
         //Update beneficiary balance
-        users[deal.beneficiary].balance += (deal.amount - fee) * 10**PYUSD_DECIMALS;
+        users[deal.beneficiary].balance += (deal.amount - fee);
 
         delete deals[_dealId];
 
@@ -462,12 +483,19 @@ function createDeal(address _payer, uint256 _amount, uint64 _duration) external 
         emit DisputeResolved(_disputeId, winner ? deal.payer : deal.beneficiary);
     }
 
-    function withdraw() external onlyUser {
+
+    // Allows users to withdraw their PYUSD balance
+    function withdraw() external onlyUser nonReentrant {
         uint256 balance = users[msg.sender].balance;
         require(balance > 0, "Insufficient balance");
 
         // Reset balance before transfer
         users[msg.sender].balance = 0;
+
+        // Withdraw funds from Aave to this contract
+        uint256 withdrawn = aavePool.withdraw(address(pyusd), balance, address(this));
+        require(withdrawn == balance, "Withdrawn mismatch");
+        aavePrincipal -= withdrawn;
 
         pyusd.safeTransfer(msg.sender, balance);
 

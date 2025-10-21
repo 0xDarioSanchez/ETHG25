@@ -6,6 +6,7 @@ import "../contracts/lancer-protocol/ProtocolContract.sol";
 import "../contracts/lancer-protocol/FactoryContract.sol";
 import { MarketplaceInstance } from "../contracts/lancer-protocol/MarketplaceInstance.sol";
 import "../contracts/mocks/MockPYUSD.sol";
+import "../contracts/mocks/MockAavePool.sol";
 import "forge-std/Script.sol";
 import "forge-std/console.sol";
 
@@ -46,6 +47,7 @@ contract DeployScript is ScaffoldETHDeploy {
         vm.startBroadcast(deployerKey);
 
         MockPYUSD pyusd = new MockPYUSD();
+        MockAavePool aavePool = new MockAavePool();
         ProtocolContract protocol = new ProtocolContract(deployer, address(pyusd));
         FactoryContract factory = new FactoryContract(deployer);
 
@@ -56,6 +58,8 @@ contract DeployScript is ScaffoldETHDeploy {
         // Deploy marketplace
         address marketplaceAddress = factory.createMarketplace(2, address(pyusd));
         MarketplaceInstance marketplace = MarketplaceInstance(marketplaceAddress);
+
+        marketplace.setAavePool(address(aavePool));
 
         vm.stopBroadcast();
 
@@ -156,6 +160,14 @@ contract DeployScript is ScaffoldETHDeploy {
         // ==========================================
         vm.startBroadcast(beneficiaryKey);
         marketplace.withdraw();
+        vm.stopBroadcast();
+
+
+        // ==========================================
+        //       Market owner withdraws funds
+        // ==========================================
+        vm.startBroadcast(deployerKey);
+        marketplace.withdrawFromAave();
         vm.stopBroadcast();
 
         // ==========================================

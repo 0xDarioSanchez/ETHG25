@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 import "../contracts/lancer-protocol/MarketplaceInstance.sol";
 import "../contracts/mocks/MockProtocol.sol";
 import "../contracts/mocks/MockPYUSD.sol";
+import "../contracts/mocks/MockAavePool.sol";
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
@@ -22,6 +23,7 @@ contract MarketplaceInstanceTest is Test {
         // Deploy mocks
         pyusd = new MockPYUSD();
         protocol = new MockProtocol();
+        MockAavePool mockPool = new MockAavePool();
 
         // Mint tokens
         pyusd.mint(payer, 10_000 ether);
@@ -34,6 +36,12 @@ contract MarketplaceInstanceTest is Test {
             address(pyusd),
             address(protocol)
         );
+
+
+        vm.startPrank(owner);
+        marketplace.setAavePool(address(mockPool));
+        vm.stopPrank();
+        
 
         vm.startPrank(owner);
         marketplace.registerUser(false, true, false); // owner as beneficiary
@@ -49,6 +57,8 @@ contract MarketplaceInstanceTest is Test {
         pyusd.approve(address(marketplace), type(uint256).max);
         vm.stopPrank();
     }
+
+
     function test_UserRegistration() public view {
         (
             address userAddress,
@@ -72,7 +82,7 @@ contract MarketplaceInstanceTest is Test {
         marketplace.createDeal(payer, 100 ether, 7);
         vm.stopPrank();
 
-        (,address storedPayer, address storedBeneficiary, uint256 amount,,,,) = marketplace.deals(0);
+        (,address storedPayer, address storedBeneficiary, uint256 amount,,,,) = marketplace.deals(1);
         assertEq(storedPayer, payer);
         assertEq(storedBeneficiary, beneficiary);
         assertEq(amount, 100 ether);
@@ -85,10 +95,10 @@ contract MarketplaceInstanceTest is Test {
         vm.stopPrank();
 
         vm.startPrank(payer);
-        marketplace.updateDealAmount(0, 200 ether);
+        marketplace.updateDealAmount(1, 200 ether);
         vm.stopPrank();
 
-        (,,,uint256 newAmount,,,,) = marketplace.deals(0);
+        (,,,uint256 newAmount,,,,) = marketplace.deals(1);
         assertEq(newAmount, 200 ether);
     }
 
@@ -99,10 +109,10 @@ contract MarketplaceInstanceTest is Test {
         vm.stopPrank();
 
         vm.startPrank(payer);
-        marketplace.acceptDeal(0);
+        marketplace.acceptDeal(1);
         vm.stopPrank();
 
-        (,,,,,,bool accepted,) = marketplace.deals(0);
+        (,,,,,,bool accepted,) = marketplace.deals(1);
         assertTrue(accepted);
     }
 
@@ -113,8 +123,8 @@ contract MarketplaceInstanceTest is Test {
         vm.stopPrank();
 
         vm.startPrank(payer);
-        marketplace.acceptDeal(0);
-        marketplace.finishDeal(0);
+        marketplace.acceptDeal(1);
+        marketplace.finishDeal(1);
         vm.stopPrank();
 
         (,uint256 newBalance,,,,,) = marketplace.users(beneficiary);
@@ -130,8 +140,8 @@ contract MarketplaceInstanceTest is Test {
 
         vm.startPrank(payer);
         pyusd.approve(address(marketplace), type(uint256).max);
-        marketplace.acceptDeal(0);
-        protocol.createDispute(msg.sender, "example string");
+        marketplace.acceptDeal(1);
+        protocol.createDispute(msg.sender);
         vm.stopPrank();
     }
 
@@ -142,12 +152,12 @@ contract MarketplaceInstanceTest is Test {
         vm.stopPrank();
 
         vm.startPrank(payer);
-        marketplace.acceptDeal(0);
-        marketplace.finishDeal(0);
+        marketplace.acceptDeal(1);
+        marketplace.finishDeal(1);
         vm.stopPrank();
 
         vm.startPrank(beneficiary);
-        marketplace.withdraw(98 ether);
+        marketplace.withdraw();
         vm.stopPrank();
 
         assertEq(pyusd.balanceOf(beneficiary), 10_098 ether); // original 10k + 98 earned

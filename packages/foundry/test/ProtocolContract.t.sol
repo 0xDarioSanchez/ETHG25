@@ -96,7 +96,7 @@ contract ProtocolContractTest is Test {
         protocol.createDispute(requester, "ipfs://proof1");
         vm.stopPrank();
 
-        (,, address requesterStored,, string memory proof,,,,,,) = protocol.disputes(0);
+        (,, address requesterStored,, string memory proof,,,,,,) = protocol.disputes(1);
         assertEq(requesterStored, requester);
         assertEq(proof, "ipfs://proof1");
     }
@@ -114,7 +114,7 @@ contract ProtocolContractTest is Test {
         vm.stopPrank();
 
         vm.startPrank(requester);
-        protocol.updateDisputeForPayer(0, requester, "updatedProof");
+        protocol.updateDisputeForPayer(1, requester, "updatedProof");
         vm.stopPrank();
     }
 
@@ -124,7 +124,7 @@ contract ProtocolContractTest is Test {
         vm.stopPrank();
 
         vm.expectRevert("Not the requester");
-        protocol.updateDisputeForPayer(0, beneficiary, "fake");
+        protocol.updateDisputeForPayer(1, beneficiary, "fake");
     }
 
     function test_RegisterToVote_And_OpenDispute() public {
@@ -133,7 +133,7 @@ contract ProtocolContractTest is Test {
         protocol.createDispute(requester, "proof");
         vm.stopPrank();
 
-        uint64 disputeId = 0;
+        uint64 disputeId = 1;
 
         // Small cheat-code: set waitingForJudges = true so judges can register
         bytes32 slot = keccak256(abi.encode(disputeId, uint256(1))); 
@@ -208,7 +208,7 @@ contract ProtocolContractTest is Test {
         protocol.createDispute(requester, "proof1");
         vm.stopPrank();
 
-        uint64 disputeId = 0;
+        uint64 disputeId = 1;
 
         vm.startPrank(judge1); protocol.registerAsJudge(); vm.stopPrank();
         vm.startPrank(judge2); protocol.registerAsJudge(); vm.stopPrank();
@@ -216,7 +216,7 @@ contract ProtocolContractTest is Test {
         vm.startPrank(judge4); protocol.registerAsJudge(); vm.stopPrank();
         vm.startPrank(judge5); protocol.registerAsJudge(); vm.stopPrank();
 
-        bytes32 base = keccak256(abi.encode(disputeId, uint256(0)));
+        bytes32 base = keccak256(abi.encode(disputeId, uint256(1)));
         bytes32 waitingForJudgesSlot = bytes32(uint256(base) + 5);
         bytes32 isOpenSlot = bytes32(uint256(base) + 6);
         vm.store(address(protocol), waitingForJudgesSlot, bytes32(uint256(1)));
@@ -246,38 +246,52 @@ contract ProtocolContractTest is Test {
 
     function test_Vote_RevertIfNotJudge() public {
         vm.startPrank(marketplace);
-        protocol.createDispute(requester, "proof1");
+        protocol.createDispute(requester, "proof");
         vm.stopPrank();
 
-        uint64 disputeId = 0;
-        bytes32 base = keccak256(abi.encode(disputeId, uint256(0)));
+        uint64 disputeId = 1;
+        bytes32 base = keccak256(abi.encode(disputeId, uint256(1)));
         bytes32 waitingForJudgesSlot = bytes32(uint256(base) + 5);
         bytes32 isOpenSlot = bytes32(uint256(base) + 6);
         vm.store(address(protocol), waitingForJudgesSlot, bytes32(uint256(1)));
         vm.store(address(protocol), isOpenSlot, bytes32(uint256(1)));
 
-        vm.expectRevert("Not registered judge");
+        vm.expectRevert("Judge not allowed to vote");
         protocol.vote(disputeId, true);
     }
 
     function test_Vote_RevertIfAlreadyVoted() public {
         vm.startPrank(marketplace);
-        protocol.createDispute(requester, "ipfs://proof1");
+        protocol.createDispute(requester, "proof1");
         vm.stopPrank();
 
-        uint64 disputeId = 0;
-        bytes32 base = keccak256(abi.encode(disputeId, uint256(0)));
+        uint64 disputeId = 1;
+
+        vm.startPrank(judge1); protocol.registerAsJudge(); vm.stopPrank();
+        vm.startPrank(judge2); protocol.registerAsJudge(); vm.stopPrank();
+        vm.startPrank(judge3); protocol.registerAsJudge(); vm.stopPrank();
+        vm.startPrank(judge4); protocol.registerAsJudge(); vm.stopPrank();
+        vm.startPrank(judge5); protocol.registerAsJudge(); vm.stopPrank();
+
+        bytes32 base = keccak256(abi.encode(disputeId, uint256(1)));
         bytes32 waitingForJudgesSlot = bytes32(uint256(base) + 5);
         bytes32 isOpenSlot = bytes32(uint256(base) + 6);
         vm.store(address(protocol), waitingForJudgesSlot, bytes32(uint256(1)));
         vm.store(address(protocol), isOpenSlot, bytes32(uint256(1)));
 
-        vm.startPrank(judge1);
-        protocol.registerAsJudge();
-        protocol.registerToVote(disputeId);
-        protocol.vote(disputeId, true);
-        vm.expectRevert("Already voted");
-        protocol.vote(disputeId, false);
+        vm.prank(judge1); protocol.registerToVote(disputeId);
+        vm.prank(judge2); protocol.registerToVote(disputeId);
+        vm.prank(judge3); protocol.registerToVote(disputeId);
+        vm.prank(judge4); protocol.registerToVote(disputeId);
+        vm.prank(judge5); protocol.registerToVote(disputeId);
+
+        (,,,,,,,,, bool isOpenBefore,) = protocol.disputes(disputeId);
+        assertTrue(isOpenBefore);
+
+        vm.prank(judge1); protocol.vote(disputeId, true); 
+
+        vm.expectRevert("Judge already voted");
+        vm.prank(judge1); protocol.vote(disputeId, true); 
         vm.stopPrank();
     }
 
@@ -286,10 +300,10 @@ contract ProtocolContractTest is Test {
         protocol.createDispute(requester, "ipfs://proof1");
         vm.stopPrank();
 
-        uint64 disputeId = 0;
-        bytes32 base = keccak256(abi.encode(disputeId, uint256(0)));
+        uint64 disputeId = 1;
+        bytes32 base = keccak256(abi.encode(disputeId, uint256(1)));
         bytes32 isOpenSlot = bytes32(uint256(base) + 6);
-        vm.store(address(protocol), isOpenSlot, bytes32(uint256(0))); // close it
+        vm.store(address(protocol), isOpenSlot, bytes32(uint256(1))); // close it
 
         vm.startPrank(judge1);
         protocol.registerAsJudge();
