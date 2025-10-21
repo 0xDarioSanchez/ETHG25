@@ -9,9 +9,9 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-
 import "./interfaces/IPYUSD.sol";
 import "./interfaces/IProtocolContract.sol";
+import "./interfaces/IPoolAaveV3.sol";
 
 // ====================================
 //              CONTRACT          
@@ -32,6 +32,9 @@ contract MarketplaceInstance is ReentrancyGuard{
     address public availExecutor;               // Avail executor address
     IERC20 public pyusd;                        //Interface for PYUSD token
     IProtocolContract public protocol;          //Interface for Protocol contract
+    IPoolAaveV3 public aavePool;                // Aave v3 Pool interface
+    uint256 public aavePrincipal;               // total PYUSD principal deposited to Aave by this instance
+        
     uint64 public dealIdCounter = 1;            //Incremental ID for deals
     uint8 constant PYUSD_DECIMALS = 6;          // Decimals of PYUSD token
     uint8 public feePercent;                  //Fee percentage charged on each deal, in PYUSD
@@ -132,6 +135,7 @@ contract MarketplaceInstance is ReentrancyGuard{
     event DealDurationUpdated(uint64 indexed dealId, uint16 newDuration);
     event DisputeCreated(uint64 indexed dealId, address indexed requester);
     event DisputeResolved(uint64 indexed disputeId, address indexed winner);
+    event AavePoolSet(address indexed pool);
 
     // ====================================
     //           CUSTOM ERRORs          

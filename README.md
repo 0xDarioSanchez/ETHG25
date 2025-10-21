@@ -1,20 +1,19 @@
-# Lancer Protocol
 
 ![banner](images/banner.png "Banner")
 
-🌐 An open-source protocol for building on-top decentralized applications (dApps) on the Ethereum blockchain. It's designed for developers to create and deploy their own dApps with on-chain escrows, payments and dispute resolution systems.
 
-## Problem
+🌐 An open-source protocol for building on-top decentralized applications (dApps) on the Ethereum blockchain. It's designed for anyone to create and deploy their own dApps with on-chain escrows, payments and dispute resolution systems.
+
+## Problem we focus on
 Centralized marketplace platforms charge high fees, in case of cross-border payments they can be delayed for several days and have an average cost of 6.04%. While they rely on dispute processes centralized in the same platforms.
 
 ## Solution
-**Lancer Protocol** provides the foundational infrastructure for decentralized marketplaces and payment applications.
-It allows developers to integrate secure escrow mechanisms, on-chain dispute resolution, and programmable payment flows directly into their dApps, without rebuilding these components from scratch. While obtaining:
+**Lancer Protocol** provides the infrastructure for decentralized marketplaces and payment applications, by allowing anyone to deploy their own marketplaces, with secure escrow mechanisms and on-chain dispute resolution. While obtaining:
 - **Low Fees**: Minimal fees since we allow a revenue model based on yield through lending protocols as Aave.
 - **Fast Payments**: Sellers or freelancers can withdraw instantly to their wallets, avoiding conversion or cross-border bank delays.
-- **Free Payments**: Transfers through Ethereum have minimal costs even for cross-border payments.
+- **Free Payments**: Transfers through Ethereum have zero extra costs for cross-border payments.
 - **Trustless Escrow**: Smart contracts lock funds, releasing only on verified conditions, reducing dispute bias.
-- **Transparency**: The escrow and voting systems are open-source and immutable while all transactions are public on Etherscan.
+- **Transparency**: The escrow and voting systems are open-source and immutable while all transactions are public on Blockscout.
 
 🧭 Overview
 
