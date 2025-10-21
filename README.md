@@ -2,38 +2,24 @@
 ![banner](images/banner.png "Banner")
 
 
-🌐 An open-source protocol for building on-top decentralized applications (dApps) on the Ethereum blockchain. It's designed for anyone to create and deploy their own dApps with on-chain escrows, payments and dispute resolution systems.
+🌐 An open-source protocol that allows anyone to create and deploy their own marketplaces on the Ethereum blockchain in a few seconds.
 
 ## Problem we focus on
-Centralized marketplace platforms charge high fees, in case of cross-border payments they can be delayed for several days and have an average cost of 6.04%. While they rely on dispute processes centralized in the same platforms.
+Centralized marketplace platforms charge high fees, in case of cross-border payments they can be delayed for several days and have an average cost of 6.04%. Additionally, they rely on dispute processes centralized in the same platforms.
 
 ## Solution
-**Lancer Protocol** provides the infrastructure for decentralized marketplaces and payment applications, by allowing anyone to deploy their own marketplaces, with secure escrow mechanisms and on-chain dispute resolution. While obtaining:
-- **Low Fees**: Minimal fees since we allow a revenue model based on yield through lending protocols as Aave.
-- **Fast Payments**: Sellers or freelancers can withdraw instantly to their wallets, avoiding conversion or cross-border bank delays.
-- **Free Payments**: Transfers through Ethereum have zero extra costs for cross-border payments.
-- **Trustless Escrow**: Smart contracts lock funds, releasing only on verified conditions, reducing dispute bias.
-- **Transparency**: The escrow and voting systems are open-source and immutable while all transactions are public on Blockscout.
 
-🧭 Overview
+**Lancer** provides the infrastructure for decentralized marketplaces and payment applications, by allowing anyone to deploy their own marketplaces, with secure escrow mechanisms and on-chain dispute resolution. While obtaining:
+- **Lower Fees**: Marketplace owners can offer reduced fees because locked funds generate yield through lending protocols, providing an automatic extra income.
+- **Fast Payments**: Users can withdraw instantly to their wallets, avoiding conversion costs and cross-border bank delays.
+- **Free Payments**: Transfers through Ethereum have zero extra costs even in case of cross-border payments.
+- **Trustless Escrow**: Smart contracts lock funds, releasing only on verified conditions.
+- **Transparency**: The entire system is open-source and immutable while all transactions are public on **Blockscout**.
+- **Honesty**: In case of disagreement, users can request a dispute resolution, which based on games' theory incentivaze jusged to for being honest.
 
-At its core, Lancer Protocol standardizes how digital agreements and payments are handled on-chain:
+## How It Works
 
-**Escrow Contracts** hold funds in PYUSD until both parties are satisfied.
-
-**Dispute Resolution Layer** enables verifiable and transparent dispute handling, optionally powered by decentralized oracles or third-party arbitration modules.
-
-**Modular Architecture** developers can plug in or extend modules (reputation systems, insurance, arbitration, AI agents, etc.) for their use case.
-
-This modular approach transforms Lancer Protocol into a composable backend for trustless applications, ideal for:
-
-Freelance & gig marketplaces
-DAO bounty platforms
-AI-to-AI or agentic payment flows
-Peer-to-peer commerce
-Web3 escrow-as-a-service infrastructure
-
-⚙️ How It Works
+![flow](images/flow.png "Flow")
 
 - Escrow Creation
 A buyer or dApp creates an escrow, specifying deal conditions, seller and the amount in **PYUSD**.
@@ -53,9 +39,26 @@ Lancer integrates Blockscout for allowing anyone to explore contract code, trans
 - Data Indexing (**Envio**)
 All on-chain events are indexed in real-time using Envio HyperIndex, allowing instant access to user escrows, dispute status, and analytics dashboards.
 
+This modular approach transforms Lancer Protocol into a composable backend for trustless applications, ideal for:
 
+Freelance & gig marketplaces
+DAO bounty platforms
+AI-to-AI or agentic payment flows
+Peer-to-peer commerce
+Web3 escrow-as-a-service infrastructure
 
-## ✅ Setup
+## Sponsors
+
+### PYUSD
+...
+
+### Envio
+...
+
+### Blockcscout
+...
+
+## ⚙️ Setup
 
 ### Requirements
 
