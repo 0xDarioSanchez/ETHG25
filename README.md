@@ -24,7 +24,8 @@ Centralized marketplace platforms charge high fees, in case of cross-border paym
 1. Anyone, lets say `Creator`, can deploy a marketplace through `Lancer Factory`
 2. Users register on the marketplace as either `Payers` (the ones who pay for services, products, etc.) or `Beneficiaries` (the ones who receive the payments, such as freelancers or sellers).
 3. The `Payer` and `Beneficiary` agree on the `Deal` conditions, such as the PYUSD amount, duration, milestones, and metadata.
-4. When the Payer accepts, PYUSD tokens are transferred to the marketplace contract. In the same transaction, those tokens are supplied to Aave to generate yield. The yield earnings can only be withdrawn by the Creator or an account designated by them.
+4. When the Payer accepts, PYUSD tokens are transferred to the marketplace contract. 
+4.1. In the same transaction, those tokens are supplied to Aave to generate yield. The yield earnings can only be withdrawn by the Creator or an account designated by them.
 5. If the `Payer` considers that the `Deal` conditions have been met, they can finalize it, allowing the `Beneficiary` to withdraw the corresponding PYUSD amount.
 5.1. If the agreed duration plus one additional week has passed, the `Beneficiary` automatically becomes eligible to withdraw the corresponding amount.
 5.2. A percentage fee is always subtracted from the `Beneficiary’s` final balance. This percentage is defined by the `Creator` and can range between 0 and 100.
@@ -32,8 +33,8 @@ Centralized marketplace platforms charge high fees, in case of cross-border paym
 7. The `Beneficiary` is notified, and both parties can submit evidence for the judges to evaluate.
 8. After a set number of days, the voting process begins. `Judges` are incentivized to vote honestly, since their reputation increases — and they receive PYUSD rewards — only if they vote with the majority. Otherwise, their reputation decreases.
 9. Once voting is complete, the `Lancer Protocol` calls the corresponding marketplace contract, indicating which party won the Dispute and can withdraw their PYUSD.
-10. Reputation scores are updated based on the results.
-11. During the entire process, `Envio HyperIndex` indexes all on-chain events in real time to power UIs, analytics, and search. Meanwhile, `Blockscout` allows anyone to explore contract source code, transactions, and verify behavior directly from the frontend.
+10.  Reputation scores are updated based on the results, for jusges on `Lancer Protocol` and also for `Payer` and `Beneficiary` on the marketplace contract.
+11.  During the entire process, `Envio HyperIndex` indexes all on-chain events in real time to power UIs, analytics, and search. Meanwhile, `Blockscout` allows anyone to explore contract source code, transactions, and verify behavior directly from the frontend.
 
 This modular approach is ideal for several industries like:
 
@@ -43,16 +44,20 @@ AI-to-AI or agentic payment flows
 Peer-to-peer commerce
 Web3 escrow-as-a-service infrastructure
 
-## Sponsors
+## Sponsor integrations
+
+Lancer integrates cutting-edge technologies from hackathon sponsors to deliver a **secure, transparent, and data-driven escrow marketplace**.  
+Each integration enhances a different layer of the system, from payments and transparency to analytics and UX.
 
 ### PYUSD
-PYUSD is a US Dollar-backed stablecoin issued by PayPal, providing a reliable and widely accepted currency for Web3 payments. Lancer integrates PYUSD as the primary token for escrow and marketplace payments.
+- **[PYUSD](./sponsors/PYUSD.md)**: PYUSD is a US Dollar-backed stablecoin, providing a reliable and widely accepted currency for Web3 payments. Lancer integrates PYUSD as the token for Lancer Protocol and for every marketplace instance.
 
 ### Envio
-Envio provides real-time event indexing and analytics for blockchain applications. Lancer uses Envio HyperIndex to efficiently track escrows, dispute events, and marketplace activity.
+- **[Envio](./sponsors/Envio.md)**: Envio provides real-time event indexing and analytics for blockchain applications. Lancer uses Envio HyperIndex to efficiently track escrows, dispute events, and marketplaces activity.
 
 ### Blockcscout
-Blockscout is an open-source blockchain explorer for Ethereum and EVM-compatible networks. Lancer leverages Blockscout to offer transparency, allowing users to verify smart contract interactions and transaction history.
+- **[Blockscout](./sponsors/Blockscout.md)**: Blockscout is an open-source blockchain explorer for Ethereum and EVM-compatible networks. Lancer leverages Blockscout to offer even more transparency, allowing users to verify smart contract interactions and transaction history.
+
 
 ## ⚙️ Setup
 
