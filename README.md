@@ -14,7 +14,7 @@ Centralized marketplace platforms charge high fees, in case of cross-border paym
 - **Fast Payments**: Users can withdraw instantly to their wallets, avoiding conversion costs and cross-border bank delays.
 - **Free Payments**: Transfers through Ethereum have zero extra costs even in case of cross-border payments.
 - **Trustless Escrow**: Smart contracts lock funds, releasing only on verified conditions.
-- **Transparency**: The entire system is open-source and immutable while all transactions are public on **Blockscout**.
+- **Transparency**: The entire system is open-source and immutable while all transactions are public on Blockscout.
 - **Honesty**: In case of disagreement, users can request a dispute resolution, which based on games' theory incentivaze jusged to for being honest.
   
 ------------------------------
@@ -48,25 +48,24 @@ Web3 escrow-as-a-service infrastructure
 
 ------------------------------
 
-## Sponsor integrations
+## ⚡ Sponsor integrations
 
 Lancer integrates cutting-edge technologies from hackathon sponsors to deliver a **secure, transparent, and data-driven escrow marketplace**.  
 Each integration enhances a different layer of the system, from payments and transparency to analytics and UX.
 
 ### PYUSD
 - PYUSD is a US Dollar-backed stablecoin, providing a reliable and widely accepted currency for Web3 payments. Lancer integrates PYUSD as the token for Lancer Protocol and for every marketplace instance.
-- More in deep explanation **[link](./sponsors/PYUSD.md)** and **[video](./sponsors/PYUSD.md)** explanation
+- More in deep explanation **[link](./sponsors/PYUSD.md)** and **[video](./sponsors/PYUSD.md)** explanation.
 
 ### Envio
 - Envio provides real-time event indexing and analytics for blockchain applications. Lancer uses Envio HyperIndex to efficiently track escrows, dispute events, and marketplaces activity.
-- More in deep explanation **[link](./sponsors/Envio.md)** and **[video](./sponsors/PYUSD.md)** explanation
+- More in deep explanation **[link](./sponsors/Envio.md)** and **[video](./sponsors/PYUSD.md)** explanation.
 
 ### Blockcscout
 - Blockscout is an open-source blockchain explorer for Ethereum and EVM-compatible networks. Lancer leverages Blockscout to offer even more transparency, allowing users to verify smart contract interactions and transaction history.
-- More in deep explanation **[link](./sponsors/Blockscout.md)** and **[video](./sponsors/PYUSD.md)** explanation
+- More in deep explanation **[link](./sponsors/Blockscout.md)** and **[video](./sponsors/PYUSD.md)** explanation.
 
 ------------------------------
-
 
 ## ⚙️ Setup
 
@@ -110,15 +109,21 @@ forge script script/DeploySepolia.s.sol \
   --broadcast
 ```
 
-4. To start the frontend run:
+4. Inside `envio` folder start the server:
+   
+```
+pnpm dev
+```
+
+5. To start the frontend run:
 
 ```
 yarn start
 ```
 
-Visit the app on: `http://localhost:3000`. You can interact with your smart contract going to `Lancer App` page.
+Visit the app on: `http://localhost:3000`. You can interact with the smart contracts going to `Lancer App` page.
 
-5. For running smart contract test use 
+6. For running smart contract tests use 
    
 ```
 yarn foundry:test
