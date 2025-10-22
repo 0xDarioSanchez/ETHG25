@@ -21,25 +21,21 @@ Centralized marketplace platforms charge high fees, in case of cross-border paym
 
 ![flow](images/flow.png "Flow")
 
-- Escrow Creation
-A buyer or dApp creates an escrow, specifying deal conditions, seller and the amount in **PYUSD**.
-Funds are locked securely in the contract until release or dispute resolution.
+1. Anyone, lets say `Creator`, can deploy a marketplace through `Lancer Factory`
+2. Users register on the marketplace as either `Payers` (the ones who pay for services, products, etc.) or `Beneficiaries` (the ones who receive the payments, such as freelancers or sellers).
+3. The `Payer` and `Beneficiary` agree on the `Deal` conditions, such as the PYUSD amount, duration, milestones, and metadata.
+4. When the Payer accepts, PYUSD tokens are transferred to the marketplace contract. In the same transaction, those tokens are supplied to Aave to generate yield. The yield earnings can only be withdrawn by the Creator or an account designated by them.
+5. If the `Payer` considers that the `Deal` conditions have been met, they can finalize it, allowing the `Beneficiary` to withdraw the corresponding PYUSD amount.
+5.1. If the agreed duration plus one additional week has passed, the `Beneficiary` automatically becomes eligible to withdraw the corresponding amount.
+5.2. A percentage fee is always subtracted from the `Beneficiary’s` final balance. This percentage is defined by the `Creator` and can range between 0 and 100.
+6. If the `Payer` believes the conditions were not met, they can request a `Dispute` within the same marketplace. This function transfers a certain amount of PYUSD to the `Lancer Protocol`, depending on how many judges the Payer wants to participate in the case.
+7. The `Beneficiary` is notified, and both parties can submit evidence for the judges to evaluate.
+8. After a set number of days, the voting process begins. `Judges` are incentivized to vote honestly, since their reputation increases — and they receive PYUSD rewards — only if they vote with the majority. Otherwise, their reputation decreases.
+9. Once voting is complete, the `Lancer Protocol` calls the corresponding marketplace contract, indicating which party won the Dispute and can withdraw their PYUSD.
+10. Reputation scores are updated based on the results.
+11. During the entire process, `Envio HyperIndex` indexes all on-chain events in real time to power UIs, analytics, and search. Meanwhile, `Blockscout` allows anyone to explore contract source code, transactions, and verify behavior directly from the frontend.
 
-- Safe Payments
-Payments remain in escrow until both sides approve, ensuring fairness.
-Developers can build custom logic around deadlines, milestones, or deliverables.
-
-- Dispute Handling
-If a disagreement occurs, users can trigger a dispute through DisputeManager.
-The protocol emits verifiable events, which can be indexed via Envio HyperIndex or settled cross-chain with Avail.
-
-- Smart Contract Transparency (**Blockscout**)
-Lancer integrates Blockscout for allowing anyone to explore contract code, transactions, and interactions directly from the Lancer frontend.
-
-- Data Indexing (**Envio**)
-All on-chain events are indexed in real-time using Envio HyperIndex, allowing instant access to user escrows, dispute status, and analytics dashboards.
-
-This modular approach transforms Lancer Protocol into a composable backend for trustless applications, ideal for:
+This modular approach is ideal for several industries like:
 
 Freelance & gig marketplaces
 DAO bounty platforms
@@ -50,13 +46,13 @@ Web3 escrow-as-a-service infrastructure
 ## Sponsors
 
 ### PYUSD
-...
+PYUSD is a US Dollar-backed stablecoin issued by PayPal, providing a reliable and widely accepted currency for Web3 payments. Lancer integrates PYUSD as the primary token for escrow and marketplace payments.
 
 ### Envio
-...
+Envio provides real-time event indexing and analytics for blockchain applications. Lancer uses Envio HyperIndex to efficiently track escrows, dispute events, and marketplace activity.
 
 ### Blockcscout
-...
+Blockscout is an open-source blockchain explorer for Ethereum and EVM-compatible networks. Lancer leverages Blockscout to offer transparency, allowing users to verify smart contract interactions and transaction history.
 
 ## ⚙️ Setup
 
@@ -161,7 +157,7 @@ yarn foundry:test
 - [ ] Add real-time notifications for escrow creation, release, and dispute resolution  
 - [ ] Allow multiple tokens payments by converting them to **PYUSD** when sended
 
-### General
+### 🧱 General
 - [x] Develop, test and deploy smart contract
 - [x] Develop front-end to interact with **Lancer Factory**, **Lancer Protocol** and deployed marketplaces
 - [ ] Write end-to-end integration tests between front-end, backend and contracts
