@@ -14,7 +14,7 @@ export function DebugContracts() {
   const contractNames = useMemo(
     () => {
       // Optionally exclude some contracts from the UI
-      const EXCLUDED_CONTRACTS = new Set<string>(["MockPYUSD"]);
+      const EXCLUDED_CONTRACTS = new Set<string>(["MockPYUSD","MockAavePool"]);
       return Object.keys(contractsData)
       .filter(name => !EXCLUDED_CONTRACTS.has(name))
       .sort((a, b) =>

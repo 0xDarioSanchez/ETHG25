@@ -4,17 +4,105 @@ contracts:
     handler: src/EventHandlers.ts
     events:
       - event: Approval(address indexed owner, address indexed spender, uint256 value)
+        field_selection:
+          transaction_fields:
+            - hash
       - event: Transfer(address indexed from, address indexed to, uint256 value)
+        field_selection:
+          transaction_fields:
+            - hash
   - name: ProtocolContract
     handler: src/EventHandlers.ts
     events:
       - event: DisputeCreated(uint256 indexed disputeId, address indexed requester, address indexed contractAddress)
+        field_selection:
+          transaction_fields:
+            - hash
       - event: DisputeResolved(uint256 indexed disputeId, address winner)
+        field_selection:
+          transaction_fields:
+            - hash
       - event: JudgeRegistered(address indexed judge)
+        field_selection:
+          transaction_fields:
+            - hash
   - name: FactoryContract
     handler: src/EventHandlers.ts
     events:
       - event: MarketplaceDeployed(address indexed marketplace, address indexed creator)
+        field_selection:
+          transaction_fields:
+            - hash
+  - name: MarketplaceInstance
+    handler: src/EventHandlers.ts
+    events:
+      - event: UserRegistered(address indexed user, bool isPayer, bool isBeneficiary, bool isJudge)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: DealCreated(uint64 indexed dealId, address indexed payer, address indexed beneficiary, uint256 amount)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: DealAccepted(uint64 indexed dealId)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: DealRejected(uint64 indexed dealId)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: DealFinalized(uint64 indexed dealId)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: DealAmountUpdated(uint64 indexed dealId, uint256 newAmount)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: DealDurationUpdated(uint64 indexed dealId, uint16 newDuration)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: DisputeCreated(uint64 indexed dealId, address indexed requester)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: DisputeResolved(uint64 indexed disputeId, address indexed winner)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: UserWithdrew(address indexed user, uint256 amount)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: PaymentDeposited(address indexed user, uint256 amount)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: AavePoolSet(address indexed pool)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: NewFeePercent(uint8 newFeePercent)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: OwnerWithdrawFromAaver(uint256 amount)
+        field_selection:
+          transaction_fields:
+            - hash
+  - name: MockAavePool
+    handler: src/EventHandlers.ts
+    events:
+      - event: Supplied(address asset, uint256 amount, address onBehalfOf)
+        field_selection:
+          transaction_fields:
+            - hash
+      - event: Withdrawn(address asset, uint256 amount, address to)
+        field_selection:
+          transaction_fields:
+            - hash
 networks:
   - id: 31337
     start_block: 1
@@ -23,12 +111,18 @@ networks:
     contracts:
       - name: MockPYUSD
         address:
-          - '0x700b6a60ce7eaaea56f065753d8dcb9653dbad35'
+          - '0x4F8159813ef3F1272AE5D6EAcE0b0AAF7DA736c9'
       - name: ProtocolContract
         address:
-          - '0xa15bb66138824a1c7167f5e85b957d04dd34e468'
+          - '0x75451ABB756DC8330450B570b2B4C0b2eDAf792c'
       - name: FactoryContract
         address:
-          - '0xb19b36b1456e65e3a6d514d3f715f204bd59f431'
+          - '0x4909aAb8Af018D87864fDB8A06699cfF7E6708C8'
+      - name: MarketplaceInstance
+        address:
+          - '0xf15842e9ba58bB2fcBFAAa554db512acEe9123f0'
+      - name: MockAavePool
+        address:
+          - '0x75BF8770369f5e8aD97C103FE2d64ea3D3A07136'  # Update with actual deployed address
 unordered_multichain_mode: true
 preload_handlers: true

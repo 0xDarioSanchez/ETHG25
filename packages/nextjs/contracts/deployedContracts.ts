@@ -7,7 +7,7 @@ import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 const deployedContracts = {
   31337: {
     MockPYUSD: {
-      address: "0xf7cd8fa9b94db2aa972023b379c7f72c65e4de9d",
+      address: "0x700b6a60ce7eaaea56f065753d8dcb9653dbad35",
       abi: [
         {
           type: "constructor",
@@ -342,10 +342,10 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 37,
+      deployedOnBlock: 1,
     },
     MockAavePool: {
-      address: "0x12975173b87f7595ee45dffb2ab812ece596bf84",
+      address: "0xa15bb66138824a1c7167f5e85b957d04dd34e468",
       abi: [
         {
           type: "function",
@@ -475,10 +475,10 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 38,
+      deployedOnBlock: 2,
     },
     ProtocolContract: {
-      address: "0x82dc47734901ee7d4f4232f398752cb9dd5daccc",
+      address: "0xb19b36b1456e65e3a6d514d3f715f204bd59f431",
       abi: [
         {
           type: "constructor",
@@ -913,10 +913,10 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 39,
+      deployedOnBlock: 3,
     },
     FactoryContract: {
-      address: "0x196dbcbb54b8ec4958c959d8949ebfe87ac2aaaf",
+      address: "0x8ce361602b935680e8dec218b820ff5056beb7af",
       abi: [
         {
           type: "constructor",
@@ -1055,12 +1055,12 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 40,
+      deployedOnBlock: 4,
     },
   },
   11155111: {
     MockPYUSD: {
-      address: "0x63b3a8d1a62c85d262214ec2b2ea61a13362e722",
+      address: "0x4f8159813ef3f1272ae5d6eace0b0aaf7da736c9",
       abi: [
         {
           type: "constructor",
@@ -1395,10 +1395,10 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 9452957,
+      deployedOnBlock: 9469273,
     },
     ProtocolContract: {
-      address: "0xaf237a6455d1fa2987dbb03d340514f16b9f6789",
+      address: "0x75451abb756dc8330450b570b2b4c0b2edaf792c",
       abi: [
         {
           type: "constructor",
@@ -1833,10 +1833,10 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 9452957,
+      deployedOnBlock: 9469273,
     },
     FactoryContract: {
-      address: "0x8ddc8381e840f6f04309b044411430fa8be48a10",
+      address: "0x4909aab8af018d87864fdb8a06699cff7e6708c8",
       abi: [
         {
           type: "constructor",
@@ -1975,7 +1975,140 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 9452957,
+      deployedOnBlock: 9469273,
+    },
+    MockAavePool: {
+      address: "0x75bf8770369f5e8ad97c103fe2d64ea3d3a07136",
+      abi: [
+        {
+          type: "function",
+          name: "balances",
+          inputs: [
+            {
+              name: "",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "supply",
+          inputs: [
+            {
+              name: "asset",
+              type: "address",
+              internalType: "address",
+            },
+            {
+              name: "amount",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "onBehalfOf",
+              type: "address",
+              internalType: "address",
+            },
+            {
+              name: "",
+              type: "uint16",
+              internalType: "uint16",
+            },
+          ],
+          outputs: [],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "withdraw",
+          inputs: [
+            {
+              name: "asset",
+              type: "address",
+              internalType: "address",
+            },
+            {
+              name: "amount",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "to",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "event",
+          name: "Supplied",
+          inputs: [
+            {
+              name: "asset",
+              type: "address",
+              indexed: false,
+              internalType: "address",
+            },
+            {
+              name: "amount",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+            {
+              name: "onBehalfOf",
+              type: "address",
+              indexed: false,
+              internalType: "address",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "Withdrawn",
+          inputs: [
+            {
+              name: "asset",
+              type: "address",
+              indexed: false,
+              internalType: "address",
+            },
+            {
+              name: "amount",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+            {
+              name: "to",
+              type: "address",
+              indexed: false,
+              internalType: "address",
+            },
+          ],
+          anonymous: false,
+        },
+      ],
+      inheritedFunctions: {},
+      deployedOnBlock: 9469273,
     },
   },
 } as const;
