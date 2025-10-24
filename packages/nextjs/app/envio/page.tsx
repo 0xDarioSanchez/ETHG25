@@ -105,7 +105,10 @@ const EnvioPage = () => {
         return;
       }
 
-      const [counts, events] = await Promise.all([getEventCounts(), getRecentEvents(5)]);
+  // Increase recent events limit so we try to read older entries that may not appear
+  // in a very short recent window. This helps when some entities are indexed earlier
+  // and others later by the indexer.
+  const [counts, events] = await Promise.all([getEventCounts(), getRecentEvents(200)]);
 
       // Also fetch marketplace deployments from Envio specifically
       let mps: Array<{ id: string; marketplace: string; creator: string }> = [];
@@ -174,8 +177,110 @@ const EnvioPage = () => {
     const mpsToScan = mpsParam ?? marketplaces ?? [];
     console.log("🔎 scanRegisteredUsersOnChain called. publicClient:", !!publicClient, "marketplacesCount:", mpsToScan.length);
     if (!publicClient) {
-      console.warn("No publicClient available, aborting on-chain scan");
-      return;
+      // Try a few short retries for publicClient (it may be initialized slightly later)
+      let tries = 0;
+      while (!publicClient && tries < 3) {
+        console.log(`🔁 publicClient not ready, retrying (${tries + 1}/3) ...`);
+        // small delay
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise(r => setTimeout(r, 1000));
+        tries += 1;
+      }
+
+      if (!publicClient) {
+        console.warn("No publicClient available after retries — attempting JSON-RPC fallback");
+        // Fall back to direct JSON-RPC call if NEXT_PUBLIC_RPC_URL is provided or default to localhost
+        const rpcUrl = (process.env.NEXT_PUBLIC_RPC_URL as string) || "http://localhost:8545";
+        if (!rpcUrl) {
+          console.warn("No RPC URL available for fallback, aborting on-chain scan");
+          return;
+        }
+
+        // perform RPC-based log fetch as a fallback
+        const rpcFetch = async (method: string, params: any[]) => {
+          const resp = await fetch(rpcUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+          });
+          const j = await resp.json();
+          return j.result;
+        };
+
+        setIsScanningUsers(true);
+        try {
+          // build event ABI selector
+          const eventAbi = {
+            type: "event",
+            name: "UserRegistered",
+            inputs: [
+              { indexed: true, name: "user", type: "address" },
+              { indexed: false, name: "isPayer", type: "bool" },
+              { indexed: false, name: "isBeneficiary", type: "bool" },
+              { indexed: false, name: "isJudge", type: "bool" },
+            ],
+          } as const;
+
+          const selector = getEventSelector(eventAbi as any);
+
+          // get latest block
+          const latestHex = await rpcFetch("eth_blockNumber", []);
+          const latestBlock = BigInt(latestHex);
+
+          const found: any[] = [];
+
+          for (const mp of mpsToScan) {
+            try {
+              const addr = mp.marketplace;
+              const logs: any[] = await rpcFetch("eth_getLogs", [
+                {
+                  address: addr,
+                  topics: [selector],
+                  fromBlock: "0x0",
+                  toBlock: `0x${latestBlock.toString(16)}`,
+                },
+              ]);
+
+              for (const l of logs) {
+                try {
+                  // adapt RPC log to shape compatible with viem decode
+                  const decoded = decodeEventLog({ abi: [eventAbi as any], data: l.data, topics: l.topics }) as any;
+                  found.push({
+                    id: `${addr}_${parseInt(l.blockNumber ?? "0", 16)}_${l.logIndex ?? 0}`,
+                    marketplace: addr,
+                    user: decoded.args.user,
+                    isPayer: decoded.args.isPayer,
+                    isBeneficiary: decoded.args.isBeneficiary,
+                    isJudge: decoded.args.isJudge,
+                    transactionHash: l.transactionHash,
+                    blockNumber: parseInt(l.blockNumber ?? "0", 16),
+                  });
+                } catch (e) {
+                  console.warn("Failed to decode RPC UserRegistered log", e);
+                }
+              }
+            } catch (e) {
+              console.warn("RPC fallback failed to fetch logs for marketplace", mp, e);
+            }
+          }
+
+          // Deduplicate by user+marketplace
+          const dedup = Object.values(
+            found.reduce((acc: Record<string, any>, item: any) => {
+              const key = `${item.marketplace.toLowerCase()}_${String(item.user).toLowerCase()}`;
+              if (!acc[key]) acc[key] = item;
+              return acc;
+            }, {}),
+          );
+
+          setRegisteredUsers(dedup);
+          console.log("🔎 RPC fallback registered users found:", dedup.length, dedup.slice(0, 5));
+        } finally {
+          setIsScanningUsers(false);
+        }
+
+        return;
+      }
     }
     if (!mpsToScan || mpsToScan.length === 0) {
       console.log("No marketplaces to scan");
@@ -253,8 +358,104 @@ const EnvioPage = () => {
     const mpsToScan = mpsParam ?? marketplaces ?? [];
     console.log("🔎 scanDealsOnChain called. publicClient:", !!publicClient, "marketplacesCount:", mpsToScan.length);
     if (!publicClient) {
-      console.warn("No publicClient available, aborting on-chain deals scan");
-      return;
+      // Try a few short retries for publicClient (it may be initialized slightly later)
+      let tries = 0;
+      while (!publicClient && tries < 3) {
+        console.log(`🔁 publicClient not ready, retrying (${tries + 1}/3) ...`);
+        // small delay
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise(r => setTimeout(r, 1000));
+        tries += 1;
+      }
+
+      if (!publicClient) {
+        console.warn("No publicClient available after retries — attempting JSON-RPC fallback for deals");
+        const rpcUrl = (process.env.NEXT_PUBLIC_RPC_URL as string) || "http://localhost:8545";
+        if (!rpcUrl) {
+          console.warn("No RPC URL available for fallback, aborting deals scan");
+          return;
+        }
+
+        const rpcFetch = async (method: string, params: any[]) => {
+          const resp = await fetch(rpcUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+          });
+          const j = await resp.json();
+          return j.result;
+        };
+
+        setIsScanningDeals(true);
+        try {
+          const eventAbi = {
+            type: "event",
+            name: "DealCreated",
+            inputs: [
+              { indexed: true, name: "dealId", type: "uint64" },
+              { indexed: true, name: "payer", type: "address" },
+              { indexed: true, name: "beneficiary", type: "address" },
+              { indexed: false, name: "amount", type: "uint256" },
+            ],
+          } as const;
+
+          const selector = getEventSelector(eventAbi as any);
+          const latestHex = await rpcFetch("eth_blockNumber", []);
+          const latestBlock = BigInt(latestHex);
+
+          const found: any[] = [];
+
+          for (const mp of mpsToScan) {
+            try {
+              const addr = mp.marketplace;
+              const logs: any[] = await rpcFetch("eth_getLogs", [
+                {
+                  address: addr,
+                  topics: [selector],
+                  fromBlock: "0x0",
+                  toBlock: `0x${latestBlock.toString(16)}`,
+                },
+              ]);
+
+              for (const l of logs) {
+                try {
+                  const decoded = decodeEventLog({ abi: [eventAbi as any], data: l.data, topics: l.topics }) as any;
+                  found.push({
+                    id: `${addr}_${parseInt(l.blockNumber ?? "0", 16)}_${l.logIndex ?? 0}`,
+                    marketplace: addr,
+                    dealId: decoded.args.dealId,
+                    payer: decoded.args.payer,
+                    beneficiary: decoded.args.beneficiary,
+                    amount: decoded.args.amount,
+                    transactionHash: l.transactionHash,
+                    blockNumber: parseInt(l.blockNumber ?? "0", 16),
+                  });
+                } catch (e) {
+                  console.warn("Failed to decode RPC DealCreated log", e);
+                }
+              }
+            } catch (e) {
+              console.warn("RPC fallback failed to fetch logs for marketplace", mp, e);
+            }
+          }
+
+          // Deduplicate by marketplace+dealId
+          const dedup = Object.values(
+            found.reduce((acc: Record<string, any>, item: any) => {
+              const key = `${String(item.marketplace).toLowerCase()}_${String(item.dealId)}`;
+              if (!acc[key]) acc[key] = item;
+              return acc;
+            }, {}),
+          );
+
+          setDeals(dedup);
+          console.log("🔎 RPC fallback deals found:", dedup.length, dedup.slice(0, 5));
+        } finally {
+          setIsScanningDeals(false);
+        }
+
+        return;
+      }
     }
     if (!mpsToScan || mpsToScan.length === 0) {
       console.log("No marketplaces to scan for deals");
@@ -549,6 +750,16 @@ const EnvioPage = () => {
                     ))}
                   </div>
                 )}
+                <div className="mt-3 flex justify-center">
+                  <button
+                    onClick={() => scanRegisteredUsersOnChain().catch(e => console.error(e))}
+                    disabled={isScanningUsers}
+                    className="btn btn-sm btn-outline"
+                    title="Force on-chain rescan for registered users"
+                  >
+                    {isScanningUsers ? "Scanning..." : "Rescan Users on-chain"}
+                  </button>
+                </div>
               </div>
 
               {/* Deals (on-chain or via Envio) */}
@@ -572,6 +783,16 @@ const EnvioPage = () => {
                     ))}
                   </div>
                 )}
+                <div className="mt-3 flex justify-center">
+                  <button
+                    onClick={() => scanDealsOnChain().catch(e => console.error(e))}
+                    disabled={isScanningDeals}
+                    className="btn btn-sm btn-outline"
+                    title="Force on-chain rescan for deals"
+                  >
+                    {isScanningDeals ? "Scanning..." : "Rescan Deals on-chain"}
+                  </button>
+                </div>
               </div>
 
               {/* Events Display */}
@@ -745,6 +966,44 @@ const EnvioPage = () => {
                 >
                   Open Hasura
                 </a>
+              </div>
+            </div>
+
+            {/* Panel Overview - quick link to detailed deals panel */}
+            <div className="bg-base-200 rounded-lg p-4 mb-6 mt-6">
+              <h3 className="font-semibold mb-2 flex items-center">
+                <BoltIcon className="h-5 w-5 mr-2 text-primary" />
+                Panel Overview
+              </h3>
+              <p className="text-sm text-base-content/70 mb-3">Open a visual panel that shows created deals as cards with details and actions.</p>
+              <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="p-3 bg-gradient-to-r from-primary/10 to-primary/5 rounded shadow-sm flex flex-col items-start">
+                    <div className="text-xs text-base-content/60">Deals</div>
+                    <div className="text-lg font-bold">{(() => {
+                      // try to find a deals count from known places
+                      const countFromState = (deals && deals.length) || 0;
+                      if (countFromState > 0) return String(countFromState);
+                      if (eventCounts) {
+                        const key = Object.keys(eventCounts).find(k => /deal/i.test(k));
+                        return key ? String(eventCounts[key]) : "0";
+                      }
+                      return "0";
+                    })()}</div>
+                  </div>
+                  <div className="p-3 bg-base-100 rounded shadow-sm flex flex-col items-start">
+                    <div className="text-xs text-base-content/60">Registered Users</div>
+                    <div className="text-lg font-bold">{registeredUsers?.length ?? 0}</div>
+                  </div>
+                  <div className="p-3 bg-base-100 rounded shadow-sm flex flex-col items-start">
+                    <div className="text-xs text-base-content/60">Marketplaces</div>
+                    <div className="text-lg font-bold">{marketplaces?.length ?? 0}</div>
+                  </div>
+                </div>
+
+                <div className="flex-shrink-0">
+                  <a href="/envio/overview" className="btn btn-primary">Open Overview</a>
+                </div>
               </div>
             </div>
 
