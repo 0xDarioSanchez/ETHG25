@@ -12,6 +12,17 @@ import {
 import { getEventSelector, decodeEventLog } from "viem";
 import { usePublicClient } from "wagmi";
 
+// Helper function to convert contract names to user-friendly display names
+const getFriendlyName = (eventType: string): string => {
+  return eventType
+    .replace(/MockPYUSD/g, "PYUSD")
+    .replace(/MockAavePool/g, "Aave Pool")
+    .replace(/ProtocolContract/g, "Protocol")
+    .replace(/FactoryContract/g, "Factory")
+    .replace(/MarketplaceInstance/g, "Marketplace")
+    .replace(/_/g, " ");
+};
+
 /**
  * Envio Indexer Page
  * This page will display indexed data from the Envio indexer
@@ -526,7 +537,9 @@ const EnvioPage = () => {
                   <div className="space-y-2">
                     {registeredUsers.map((u: any, i: number) => (
                       <div key={u.id ?? i} className="p-2 bg-base-300 rounded text-xs">
-                        {Object.entries(u).map(([k, v]) => (
+                        {Object.entries(u)
+                          .filter(([k, v]) => k !== "id" && k !== "isJudge")
+                          .map(([k, v]) => (
                           <div key={k} className="flex justify-between">
                             <span className="font-bold text-base-content mr-2">{k}:</span>
                             <span className="font-mono">{typeof v === "object" ? JSON.stringify(v) : String(v)}</span>
@@ -596,9 +609,13 @@ const EnvioPage = () => {
                     <div className="space-y-2">
                       {Object.entries(eventCounts).map(([eventType, count]) => {
                         if (count === 0) return null;
+                        
+                        // Create a mapping for user-friendly names
+                        const friendlyName = getFriendlyName(eventType);
+                        
                         return (
                           <div key={eventType} className="flex justify-between text-sm">
-                              <span className="text-base-content/70">{eventType.replace(/_/g, " ")}</span>
+                              <span className="text-base-content/70">{friendlyName}</span>
                               <span className="font-semibold text-base-content/70">{String(count)}</span>
                             </div>
                         );
@@ -650,7 +667,9 @@ const EnvioPage = () => {
 
                         return events.map((event: any, index: number) => (
                           <div key={`${eventType}-${index}`} className="text-xs bg-base-300 p-2 rounded">
-                            <div className="font-semibold text-primary mb-1">{eventType.replace(/_/g, " ")}</div>
+                            <div className="font-semibold text-primary mb-1">
+                              {getFriendlyName(eventType)}
+                            </div>
 
                             {/* Dynamically render fields based on schema */}
                             {entityInfo &&

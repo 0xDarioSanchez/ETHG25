@@ -1,12 +1,8 @@
-# MockPYUSD Events
 type MockPYUSD_Approval {
   id: ID!
   owner: String!
   spender: String!
   value: BigInt!
-  blockNumber: BigInt!
-  transactionHash: String!
-  timestamp: BigInt!
 }
 
 type MockPYUSD_Transfer {
@@ -14,183 +10,13 @@ type MockPYUSD_Transfer {
   from: String!
   to: String!
   value: BigInt!
-  blockNumber: BigInt!
-  transactionHash: String!
-  timestamp: BigInt!
 }
 
-# ProtocolContract Events
-type ProtocolContract_DisputeCreated {
-  id: ID!
-  disputeId: BigInt!
-  requester: String!
-  contractAddress: String!
-  blockNumber: BigInt!
-  transactionHash: String!
-  timestamp: BigInt!
-}
-
-type ProtocolContract_DisputeResolved {
-  id: ID!
-  disputeId: BigInt!
-  winner: String!
-  blockNumber: BigInt!
-  transactionHash: String!
-  timestamp: BigInt!
-}
-
-type ProtocolContract_JudgeRegistered {
-  id: ID!
-  judge: String!
-  blockNumber: BigInt!
-  transactionHash: String!
-  timestamp: BigInt!
-}
-
-# FactoryContract Events
-type FactoryContract_MarketplaceDeployed {
-  id: ID!
-  marketplace: String!
-  creator: String!
-  blockNumber: BigInt!
-  transactionHash: String!
-  timestamp: BigInt!
-}
-
-# MarketplaceInstance Events
-type MarketplaceInstance_UserRegistered {
-  id: ID!
-  user: String!
-  isPayer: Boolean!
-  isBeneficiary: Boolean!
-  isJudge: Boolean!
-  blockNumber: BigInt!
-  transactionHash: String!
-  timestamp: BigInt!
-}
-
-type MarketplaceInstance_DealCreated {
-  id: ID!
-  dealId: BigInt!
-  payer: String!
-  beneficiary: String!
-  amount: BigInt!
-  blockNumber: BigInt!
-  transactionHash: String!
-  timestamp: BigInt!
-}
-
-type MarketplaceInstance_DealAccepted {
-  id: ID!
-  dealId: BigInt!
-  blockNumber: BigInt!
-  transactionHash: String!
-  timestamp: BigInt!
-}
-
-type MarketplaceInstance_DealRejected {
-  id: ID!
-  dealId: BigInt!
-  blockNumber: BigInt!
-  transactionHash: String!
-  timestamp: BigInt!
-}
-
-type MarketplaceInstance_DealFinalized {
-  id: ID!
-  dealId: BigInt!
-  blockNumber: BigInt!
-  transactionHash: String!
-  timestamp: BigInt!
-}
-
-type MarketplaceInstance_DealAmountUpdated {
-  id: ID!
-  dealId: BigInt!
-  newAmount: BigInt!
-  blockNumber: BigInt!
-  transactionHash: String!
-  timestamp: BigInt!
-}
-
-type MarketplaceInstance_DealDurationUpdated {
-  id: ID!
-  dealId: BigInt!
-  newDuration: BigInt!
-  blockNumber: BigInt!
-  transactionHash: String!
-  timestamp: BigInt!
-}
-
-type MarketplaceInstance_DisputeCreated {
-  id: ID!
-  dealId: BigInt!
-  requester: String!
-  blockNumber: BigInt!
-  transactionHash: String!
-  timestamp: BigInt!
-}
-
-type MarketplaceInstance_DisputeResolved {
-  id: ID!
-  disputeId: BigInt!
-  winner: String!
-  blockNumber: BigInt!
-  transactionHash: String!
-  timestamp: BigInt!
-}
-
-type MarketplaceInstance_UserWithdrew {
-  id: ID!
-  user: String!
-  amount: BigInt!
-  blockNumber: BigInt!
-  transactionHash: String!
-  timestamp: BigInt!
-}
-
-type MarketplaceInstance_PaymentDeposited {
-  id: ID!
-  user: String!
-  amount: BigInt!
-  blockNumber: BigInt!
-  transactionHash: String!
-  timestamp: BigInt!
-}
-
-type MarketplaceInstance_AavePoolSet {
-  id: ID!
-  pool: String!
-  blockNumber: BigInt!
-  transactionHash: String!
-  timestamp: BigInt!
-}
-
-type MarketplaceInstance_NewFeePercent {
-  id: ID!
-  newFeePercent: BigInt!
-  blockNumber: BigInt!
-  transactionHash: String!
-  timestamp: BigInt!
-}
-
-type MarketplaceInstance_OwnerWithdrawFromAaver {
-  id: ID!
-  amount: BigInt!
-  blockNumber: BigInt!
-  transactionHash: String!
-  timestamp: BigInt!
-}
-
-# MockAavePool Events
 type MockAavePool_Supplied {
   id: ID!
   asset: String!
   amount: BigInt!
   onBehalfOf: String!
-  blockNumber: BigInt!
-  transactionHash: String!
-  timestamp: BigInt!
 }
 
 type MockAavePool_Withdrawn {
@@ -198,81 +24,29 @@ type MockAavePool_Withdrawn {
   asset: String!
   amount: BigInt!
   to: String!
-  blockNumber: BigInt!
-  transactionHash: String!
-  timestamp: BigInt!
 }
 
-# Core Entities for better data organization
-type User {
-  id: ID!
-  address: String!
-  isPayer: Boolean!
-  isBeneficiary: Boolean!
-  isJudge: Boolean!
-  balance: BigInt!
-  reputationAsUser: BigInt!
-  reputationAsJudge: BigInt!
-  totalDeals: BigInt!
-  totalVolume: BigInt!
-  createdAt: BigInt!
-  updatedAt: BigInt!
-}
-
-type Deal {
-  id: ID!
-  dealId: BigInt!
-  payer: String!
-  beneficiary: String!
-  amount: BigInt!
-  duration: BigInt!
-  startedAt: BigInt!
-  accepted: Boolean!
-  disputed: Boolean!
-  finalized: Boolean!
-  createdAt: BigInt!
-  updatedAt: BigInt!
-}
-
-type Dispute {
+type ProtocolContract_DisputeCreated {
   id: ID!
   disputeId: BigInt!
-  dealId: BigInt!
   requester: String!
-  beneficiary: String!
   contractAddress: String!
-  requesterProofs: String!
-  beneficiaryProofs: String!
-  votesFor: BigInt!
-  votesAgainst: BigInt!
-  waitingForJudges: Boolean!
-  isOpen: Boolean!
-  resolved: Boolean!
-  winner: String
-  createdAt: BigInt!
-  updatedAt: BigInt!
 }
 
-type Judge {
+type ProtocolContract_DisputeResolved {
   id: ID!
-  address: String!
-  balance: BigInt!
-  reputation: BigInt!
-  totalVotes: BigInt!
-  correctVotes: BigInt!
-  createdAt: BigInt!
-  updatedAt: BigInt!
+  disputeId: BigInt!
+  winner: String!
 }
 
-type Marketplace {
+type ProtocolContract_JudgeRegistered {
   id: ID!
-  address: String!
+  judge: String!
+}
+
+type FactoryContract_MarketplaceDeployed {
+  id: ID!
+  marketplace: String!
   creator: String!
-  feePercent: BigInt!
-  token: String!
-  totalDeals: BigInt!
-  totalVolume: BigInt!
-  createdAt: BigInt!
-  updatedAt: BigInt!
 }
 
