@@ -10,7 +10,7 @@ import {
   getMarketplaceDeployments,
 } from "~~/utils/graphql";
 import { getEventSelector, decodeEventLog } from "viem";
-import { usePublicClient } from "wagmi";
+import { usePublicClient, useAccount } from "wagmi";
 
 // Helper function to convert contract names to user-friendly display names
 const getFriendlyName = (eventType: string): string => {
@@ -42,6 +42,7 @@ const EnvioPage = () => {
   const [deals, setDeals] = useState<any[]>([]);
   const [isScanningDeals, setIsScanningDeals] = useState(false);
   const publicClient = usePublicClient();
+  const { address, isConnected } = useAccount();
 
   // Check indexer status by checking the console/state endpoint
   const checkIndexerStatus = async () => {
@@ -685,6 +686,50 @@ const EnvioPage = () => {
             </div>
 
 
+            {/* Panel Overview - quick link to detailed deals panel */}
+            <div className="bg-base-200 rounded-lg p-4 mb-6 mt-6">
+              <h3 className="font-semibold mb-2 flex items-center">
+                <BoltIcon className="h-5 w-5 mr-2 text-primary" />
+                Panel Overview
+              </h3>
+              <p className="text-sm text-base-content/70 mb-3">Open a visual panel that shows created deals as cards with details and actions.</p>
+              <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                <div className="flex-1">
+                  {/* Show user's connected address here (or Not connected) */}
+                  <div className="p-3 bg-base-100 rounded shadow-sm flex items-center justify-between">
+                    <div>
+                      <div className="text-xs text-base-content/60">Your address</div>
+                      <div className="text-lg font-bold">{isConnected ? address : "Not connected"}</div>
+                      <div className="text-xs text-base-content/60">Connected wallet address</div>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <button
+                        onClick={() => address && navigator.clipboard.writeText(address)}
+                        className="btn btn-ghost btn-sm"
+                        title="Copy address"
+                      >
+                        Copy
+                      </button>
+                      <a
+                        className="btn btn-sm btn-primary mt-2"
+                        href={address ? `https://sepolia.blockscout.io/address/${address}` : "#"}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        View on Blockscout
+                      </a>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex-shrink-0">
+                  <a href="/envio/overview" className="btn btn-primary">Open Overview</a>
+                </div>
+              </div>
+            </div>
+
+
+
 
             {/* Marketplaces indexed by Envio */}
             <div className="mb-8">
@@ -966,44 +1011,6 @@ const EnvioPage = () => {
                 >
                   Open Hasura
                 </a>
-              </div>
-            </div>
-
-            {/* Panel Overview - quick link to detailed deals panel */}
-            <div className="bg-base-200 rounded-lg p-4 mb-6 mt-6">
-              <h3 className="font-semibold mb-2 flex items-center">
-                <BoltIcon className="h-5 w-5 mr-2 text-primary" />
-                Panel Overview
-              </h3>
-              <p className="text-sm text-base-content/70 mb-3">Open a visual panel that shows created deals as cards with details and actions.</p>
-              <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-                <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="p-3 bg-gradient-to-r from-primary/10 to-primary/5 rounded shadow-sm flex flex-col items-start">
-                    <div className="text-xs text-base-content/60">Deals</div>
-                    <div className="text-lg font-bold">{(() => {
-                      // try to find a deals count from known places
-                      const countFromState = (deals && deals.length) || 0;
-                      if (countFromState > 0) return String(countFromState);
-                      if (eventCounts) {
-                        const key = Object.keys(eventCounts).find(k => /deal/i.test(k));
-                        return key ? String(eventCounts[key]) : "0";
-                      }
-                      return "0";
-                    })()}</div>
-                  </div>
-                  <div className="p-3 bg-base-100 rounded shadow-sm flex flex-col items-start">
-                    <div className="text-xs text-base-content/60">Registered Users</div>
-                    <div className="text-lg font-bold">{registeredUsers?.length ?? 0}</div>
-                  </div>
-                  <div className="p-3 bg-base-100 rounded shadow-sm flex flex-col items-start">
-                    <div className="text-xs text-base-content/60">Marketplaces</div>
-                    <div className="text-lg font-bold">{marketplaces?.length ?? 0}</div>
-                  </div>
-                </div>
-
-                <div className="flex-shrink-0">
-                  <a href="/envio/overview" className="btn btn-primary">Open Overview</a>
-                </div>
               </div>
             </div>
 

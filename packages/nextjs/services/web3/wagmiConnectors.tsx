@@ -25,6 +25,17 @@ const wallets = [
     : []),
 ];
 
+// rainbowkitBurnerWallet comes from a package that may embed a different copy/version
+// of rainbowkit/wagmi which causes a types mismatch at build-time. Cast to a
+// compatible type to work around the duplicate-types issue while preserving runtime behavior.
+// Use a broad 'any' cast here because the burner-connector package can bring a
+// nested copy of rainbowkit/wagmi that makes the Wallet types incompatible at
+// compile time. Casting to 'any' is a small, local workaround to keep runtime
+// behavior while avoiding a build failure. A longer-term fix is to align
+// dependency versions or add workspace resolutions so only one copy of
+// rainbowkit/wagmi is installed.
+const typedWallets = wallets as unknown as any[];
+
 /**
  * wagmi connectors for the wagmi context
  */
@@ -39,7 +50,7 @@ export const wagmiConnectors = () => {
     [
       {
         groupName: "Supported Wallets",
-        wallets,
+          wallets: typedWallets,
       },
     ],
 
