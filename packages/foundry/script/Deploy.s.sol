@@ -179,10 +179,10 @@ contract DeployScript is ScaffoldETHDeploy {
         
         console.log("Dispute resolved:", isResolved);
 
-        console.log("Payer PYUSD balance:", pyusd.balanceOf(payer) / 1e6, "Initially 1000, paid 700 for deal and 50 for dispute");
-        console.log("Beneficiary PYUSD balance:", pyusd.balanceOf(beneficiary) / 1e6);
-        console.log("Marketplace PYUSD balance:", pyusd.balanceOf(marketplaceAddress) / 1e6);
-        console.log("Protocol PYUSD balance:", pyusd.balanceOf(address(protocol)) / 1e6);
+        console.log("Payer PYUSD balance:", pyusd.balanceOf(payer) / 1e6, "(Initially 1000, paid 700 for deal and 50 for dispute)");
+        console.log("Beneficiary PYUSD balance:", pyusd.balanceOf(beneficiary) / 1e6, "(700 - 2% fee)");
+        console.log("Marketplace PYUSD balance:", pyusd.balanceOf(marketplaceAddress) / 1e6, "(Owner retained fees)");
+        console.log("Protocol PYUSD balance:", pyusd.balanceOf(address(protocol)) / 1e6, "(Since one judge did not receive a reward, it remains in the contract)");
         console.log("Judge 1 PYUSD balance:", pyusd.balanceOf(judges[0]) / 1e6);
         console.log("Judge 2 PYUSD balance:", pyusd.balanceOf(judges[1]) / 1e6);
         console.log("Judge 3 PYUSD balance:", pyusd.balanceOf(judges[2]) / 1e6);
