@@ -29,6 +29,16 @@ With Autoscout, the Lancer ecosystem gains an **open-source explorer** that enha
    4.1. Developers can debug and audit contract behavior easily through Blockscout’s verified source views.  
    4.2. Users gain confidence through **full traceability** of every escrow, payment, and dispute decision.  
 
+## Dynamic Multi-Marketplace Support  
+
+Lancer operates as a **contract factory**, enabling users to deploy their own marketplaces directly from the `LancerFactory` contract.  
+Each new marketplace automatically becomes visible and verifiable through the same Blockscout instance — without requiring any extra setup.  
+
+Because Blockscout indexes all contracts deployed on the same network, every new marketplace inherits **instant transparency** and **public accessibility**.  
+From the Lancer frontend, users and creators can open direct “View on Blockscout” links for their own deployed contracts, ensuring that trust and traceability scale seamlessly with ecosystem growth.  
+
+This approach transforms the Blockscout instance into a **shared transparency layer** for all marketplaces deployed within Lancer.  
+
 ## Why This Integration  
 
 Lancer’s integration showcases Autoscout’s potential as a **fast and flexible explorer launchpad** for any EVM-based ecosystem.  
@@ -38,6 +48,7 @@ Lancer’s integration showcases Autoscout’s potential as a **fast and flexibl
 | **Ease of Use** | Deployed a custom explorer in minutes using Autoscout. |
 | **Integration** | Linked the explorer directly with the Lancer frontend and backend for seamless UX. |
 | **Transparency** | Enabled users and judges to verify every transaction and dispute resolution process. |
+| **Scalability** | Automatically supports all new marketplaces deployed via the Lancer Factory. |
 | **Open Access** | Public explorer and API endpoints provide on-chain visibility for developers and users alike. |
 
 ## Explorer Links  
@@ -51,4 +62,4 @@ Explore the deployed Lancer contracts on our Blockscout instance:
 
 **Lancer + Blockscout = Verifiable Trust for Every Transaction.**  
 
-By using Autoscout to launch a dedicated explorer, Lancer delivers a transparent and auditable experience, reinforcing confidence across all stakeholders — from developers to users.
+By using Autoscout to launch a dedicated explorer, Lancer delivers a transparent and auditable experience that scales automatically with every new marketplace created through the Factory contract — reinforcing confidence across all stakeholders, from developers to users.
