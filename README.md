@@ -38,13 +38,7 @@ Centralized marketplace platforms charge high fees, in case of cross-border paym
 10.  Reputation scores are updated based on the results, for jusges on `Lancer Protocol` and also for `Payer` and `Beneficiary` on the marketplace contract.
 11.  During the entire process, `Envio HyperIndex` indexes all on-chain events in real time to power UIs, analytics, and search. Meanwhile, `Blockscout` allows anyone to explore contract source code, transactions, and verify behavior directly from the frontend.
 
-This modular approach is ideal for several industries like:
-
-Freelance & gig marketplaces
-DAO bounty platforms
-AI-to-AI or agentic payment flows
-Peer-to-peer commerce
-Web3 escrow-as-a-service infrastructure
+This modular approach is ideal for industries like: Freelance & gig marketplaces, DAO bounty platforms, AI-to-AI or agentic payment flows Peer-to-peer commerce and Web3 escrow-as-a-service infrastructure, between several others.
 
 ------------------------------
 
@@ -127,6 +121,12 @@ Visit the app on: `http://localhost:3000`. You can interact with the smart contr
    
 ```
 yarn foundry:test
+```
+
+7. If the front-end shows some issues you can run:
+  
+```
+yarn add class-variance-authority @radix-ui/react-dialog @radix-ui/react-label tailwind-merge
 ```
 
 ------------------------------

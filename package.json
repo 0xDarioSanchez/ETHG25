@@ -74,6 +74,7 @@
     "connectkit": "^1.9.1",
     "generator-function": "^2.0.1",
     "lucide-react": "^0.546.0",
+    "next": "latest",
     "viem": "^1.0.0-next.15"
   }
 }

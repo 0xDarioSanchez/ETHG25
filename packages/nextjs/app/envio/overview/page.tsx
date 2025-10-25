@@ -149,7 +149,7 @@ const OverviewPage = () => {
 
                 <div className="mt-4 flex gap-2">
                   <a className="btn btn-sm btn-ghost" href="#">Open</a>
-                  <button className="btn btn-sm btn-outline">View deal details</button>
+                  <button className="btn btn-sm btn-outline">View transactions history</button>
                 </div>
               </div>
 

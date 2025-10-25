@@ -693,7 +693,7 @@ const EnvioPage = () => {
                 Panel Overview
               </h3>
               <p className="text-sm text-base-content/70 mb-3">Open a visual panel that shows created deals as cards with details and actions.</p>
-              <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+              <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
                 <div className="flex-1">
                   {/* Show user's connected address here (or Not connected) */}
                   <div className="p-3 bg-base-100 rounded shadow-sm flex items-center justify-between">
@@ -710,24 +710,36 @@ const EnvioPage = () => {
                       >
                         Copy
                       </button>
-                      <a
-                        className="btn btn-sm btn-primary mt-2"
-                        href={address ? `https://sepolia.blockscout.io/address/${address}` : "#"}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        View on Blockscout
-                      </a>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex-shrink-0">
-                  <a href="/envio/overview" className="btn btn-primary">Open Overview</a>
+
+                {/* Blockscout link: placed below address card inside the Panel Overview card */}
+                <div className="mt-4 flex justify-center">
+                  <a
+                    className="btn btn-sm btn-outline"
+                    href={address ? `https://sepolia.blockscout.io/address/${address}` : "#"}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    View on Blockscout
+                  </a>
                 </div>
               </div>
-            </div>
 
+
+                <div className="mt-4 flex justify-center">
+                  {/* Prominent Open Overview button: large on desktop, full-width on mobile */}
+                  <a
+                    href="/envio/overview"
+                    className="btn btn-primary px-6 py-3 rounded-md shadow-md text-base w-full sm:w-auto"
+                    style={{ minWidth: 160 }}
+                  >
+                    Open Overview
+                  </a>
+                </div>
+              </div>
 
 
 
