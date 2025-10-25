@@ -692,7 +692,7 @@ const EnvioPage = () => {
                 <BoltIcon className="h-5 w-5 mr-2 text-primary" />
                 Panel Overview
               </h3>
-              <p className="text-sm text-base-content/70 mb-3">Open a visual panel that shows created deals as cards with details and actions.</p>
+
               <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
                 <div className="flex-1">
                   {/* Show user's connected address here (or Not connected) */}
@@ -703,43 +703,33 @@ const EnvioPage = () => {
                       <div className="text-xs text-base-content/60">Connected wallet address</div>
                     </div>
                     <div className="flex flex-col items-end">
-                      <button
-                        onClick={() => address && navigator.clipboard.writeText(address)}
-                        className="btn btn-ghost btn-sm"
-                        title="Copy address"
+                      <a
+                        className="btn btn-sm btn-outline w-full sm:w-auto"
+                        href={address ? `https://sepolia.blockscout.io/address/${address}` : "#"}
+                        target="_blank"
+                        rel="noreferrer"
                       >
-                        Copy
-                      </button>
+                        View on Blockscout
+                      </a>
                     </div>
                   </div>
                 </div>
 
-
-                {/* Blockscout link: placed below address card inside the Panel Overview card */}
-                <div className="mt-4 flex justify-center">
-                  <a
-                    className="btn btn-sm btn-outline"
-                    href={address ? `https://sepolia.blockscout.io/address/${address}` : "#"}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    View on Blockscout
-                  </a>
-                </div>
+                {/* Right column placeholder - keeps layout balanced on wide screens */}
+                <div className="flex-shrink-0 w-full sm:w-auto" />
               </div>
 
+              <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
 
-                <div className="mt-4 flex justify-center">
-                  {/* Prominent Open Overview button: large on desktop, full-width on mobile */}
-                  <a
-                    href="/envio/overview"
-                    className="btn btn-primary px-6 py-3 rounded-md shadow-md text-base w-full sm:w-auto"
-                    style={{ minWidth: 160 }}
-                  >
-                    Open Overview
-                  </a>
-                </div>
+                <a
+                  href="/envio/overview"
+                  className="btn btn-primary px-6 py-3 rounded-md shadow-md text-base w-full sm:w-auto"
+                  style={{ minWidth: 160 }}
+                >
+                  Open Overview
+                </a>
               </div>
+            </div>
 
 
 
