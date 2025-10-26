@@ -80,6 +80,12 @@ To get started follow those steps:
 yarn install
 ```
 
+1.1 And inside 'foundry' folder run:
+
+```
+forge install foundry-rs/forge-std
+```
+
 2. Run a local network in the first terminal:
 
 ```
