@@ -49,15 +49,15 @@ Each integration enhances a different layer of the system, from payments and tra
 
 ### PYUSD
 - PYUSD is a US Dollar-backed stablecoin, providing a reliable and widely accepted currency for Web3 payments. Lancer integrates PYUSD as the token for Lancer Protocol and for every marketplace instance.
-- More in deep explanation **[link](./sponsors/PYUSD.md)** and **[video](./sponsors/PYUSD.md)** explanation.
+- More in deep explanation **[link](./sponsors/PYUSD.md)**.
 
 ### Envio
 - Envio provides real-time event indexing and analytics for blockchain applications. Lancer uses Envio HyperIndex to efficiently track escrows, dispute events, and marketplaces activity.
-- More in deep explanation **[link](./sponsors/Envio.md)** and **[video](./sponsors/PYUSD.md)** explanation.
+- More in deep explanation **[link](./sponsors/Envio.md)**.
 
 ### Blockcscout
 - Blockscout is an open-source blockchain explorer for Ethereum and EVM-compatible networks. Lancer leverages Blockscout to offer even more transparency, allowing users to verify smart contract interactions and transaction history.
-- More in deep explanation **[link](./sponsors/Blockscout.md)** and **[video](./sponsors/PYUSD.md)** explanation.
+- More in deep explanation **[link](./sponsors/Blockscout.md)**.
 
 ------------------------------
 

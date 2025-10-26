@@ -12,6 +12,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./interfaces/IPYUSD.sol";
 import "./interfaces/IProtocolContract.sol";
 import "./interfaces/IPoolAaveV3.sol";
+import "./interfaces/IUniversalRouter.sol";
 
 // ====================================
 //              CONTRACT          
@@ -33,11 +34,12 @@ contract MarketplaceInstance is ReentrancyGuard{
     IERC20 public pyusd;                        //Interface for PYUSD token
     IProtocolContract public protocol;          //Interface for Protocol contract
     IPoolAaveV3 public aavePool;                // Aave v3 Pool interface
+    address public universalRouter;             // Universal Router address
     uint256 public aavePrincipal;               // total PYUSD principal deposited to Aave by this instance
         
     uint64 public dealIdCounter = 1;            //Incremental ID for deals
     uint8 constant PYUSD_DECIMALS = 6;          // Decimals of PYUSD token
-    uint8 public feePercent;                  //Fee percentage charged on each deal, in PYUSD
+    uint8 public feePercent;                    //Fee percentage charged on each deal, in PYUSD
 
     //Struct for storing user information
     //The reason to have 3 booleans is to allow users to be in different roles while using the same address
@@ -190,6 +192,12 @@ contract MarketplaceInstance is ReentrancyGuard{
        emit OwnerWithdrawFromAaver(amount);
     }
 
+    // Allows the Owner to set the Uniswap Universal Router address
+    function setUniversalRouter(address _router) external onlyOwner {
+        require(_router != address(0), "Invalid router address");
+        universalRouter = _router;
+    }
+
     // ====================================
     //         EXTERNAL FUNCTIONS          
     // ====================================
@@ -309,6 +317,32 @@ function createDeal(address _payer, uint256 _amount, uint64 _duration) external 
         aavePrincipal += deal.amount;
 
         emit DealAccepted(_dealId);
+    }
+
+
+    /// @notice Pulls `amountIn` of `tokenIn` from msg.sender, swaps to PYUSD via UniversalRouter,
+    /// then sends resulting PYUSD back to the sender.
+    /// @dev "commands" and "inputs" should be prepared by the caller (frontend or backend) following Uniswap Universal Router docs.
+    /// @dev To simplify implementation I'm allowing the user to swap any token to PYUSD via Universal Router for later use 
+    /// them in this contract, but in the future I want to integrate this swap inside the `acceptDeal` function.
+    function swapToPYUSD_UnivRouter(
+        address tokenIn,
+        uint256 amountIn,
+        bytes calldata commands,
+        bytes[] calldata inputs,
+        uint256 deadline
+    ) external {
+        require(amountIn > 0, "amountIn==0");
+        require(IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn), "transferFrom failed");
+
+        // Approve universal router to spend the tokens (only for amountIn)
+        IERC20(tokenIn).approve(universalRouter, amountIn);
+
+        IUniversalRouter(universalRouter).execute{value: 0}(commands, inputs, deadline);
+
+        uint256 pyBalance = IERC20(pyusd).balanceOf(address(this));
+        require(pyBalance > 0, "no PYUSD received");
+        require(IERC20(pyusd).transfer(msg.sender, pyBalance), "py transfer failed");
     }
 
 

@@ -5,7 +5,6 @@
 ## Overview  
 
 Envio’s **HyperIndex** plays a crucial role in Lancer, powering real-time data tracking and analytics across all marketplaces, escrows, and disputes.  
-With HyperIndex, since it provides **real-time, developer-friendly, and scalable indexing**, making it a perfect fit for Lancer’s marketplace ecosystem, where multiple contracts and participants interact dynamically.  
 
 For the frontend, directly requesting data from the blockchain is slow and inefficient. But by indexing marketplace events with **Envio HyperIndex**, Lancer allows marketplace creators and users to read data instantly from an optimized indexer, making frontend visualizations faster and the overall UX significantly smoother. That transform on-chain events into instantly queryable data, enabling a fast, responsive, and data-rich experience for the end users.
 
@@ -31,7 +30,7 @@ Lancer’s Envio integration dynamically tracks every marketplace deployed throu
    - Total PYUSD locked in escrows  
    - Number of active or completed deals  
    - User reputation history  
-   -Marketplace-level analytics such as total volume, fees, and disputes resolved.  
+   - Marketplace-level analytics such as total volume, fees, and disputes resolved.  
 
 ## Why This Integration  
 

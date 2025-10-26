@@ -4,7 +4,7 @@
 ## Overview  
 
 Blockscout’s **Autoscout** allows Lancer to provide users and judges with full visibility into all on-chain actions.  
-By deploying a custom Blockscout explorer through Autoscout, every contract interaction — from escrow creation to dispute resolution — becomes publicly verifiable and developer-accessible via API.  
+By deploying a custom Blockscout explorer through Autoscout, every contract interaction, from escrow creation to dispute resolution, becomes publicly verifiable and developer-accessible via API.  
 
 Transparency is the foundation of trust in decentralized marketplaces.  
 Blockscout empowers Lancer to offer **verifiable, human-readable proof** of every contract action, without relying on centralized intermediaries.  
@@ -15,17 +15,16 @@ With Autoscout, the Lancer ecosystem gains an **open-source explorer** that enha
 
 1. **Autoscout Deployment**  
    1.1. Using Blockscout’s self-service explorer launchpad, Lancer deployed a dedicated explorer instance connected to the testnet used during development.  
-   1.2. This enables a one-click view of all transactions, addresses, and smart contract metadata.  
+   1.2. This enables a one-click view of all transactions, addresses, and smart contract data.  
 
 2. **Custom Configuration**  
-   2.1. The explorer is branded for Lancer, displaying all core protocol contracts and deployed marketplace instances.  
-   2.2. Each contract’s verified source code is published directly through Blockscout for public inspection.  
+   The explorer is branded for Lancer, displaying all core protocol contracts and deployed marketplace instances.  
 
 3. **API Integration**  
    3.1. The frontend connects to the Blockscout API to retrieve real-time transaction data and link users directly to verified on-chain actions.  
    3.2. This enhances transparency for all participants — **Payers, Beneficiaries, and Judges**.  
 
-4. **Developer & User Benefits**  
+4. **Benefits**  
    4.1. Developers can debug and audit contract behavior easily through Blockscout’s verified source views.  
    4.2. Users gain confidence through **full traceability** of every escrow, payment, and dispute decision.  
 
@@ -62,4 +61,4 @@ Explore the deployed Lancer contracts on our Blockscout instance:
 
 **Lancer + Blockscout = Verifiable Trust for Every Transaction.**  
 
-By using Autoscout to launch a dedicated explorer, Lancer delivers a transparent and auditable experience that scales automatically with every new marketplace created through the Factory contract — reinforcing confidence across all stakeholders, from developers to users.
+By using Autoscout to launch a dedicated explorer, Lancer delivers a transparent and auditable experience that scales automatically with every new marketplace created through the Factory contract, reinforcing confidence across all stakeholders, from developers to users.
